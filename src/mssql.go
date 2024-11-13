@@ -2,6 +2,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"runtime"
@@ -97,4 +98,10 @@ func main() {
 	if args.EnableQueryMonitoring {
 		queryanalysis.PopulateQueryPerformanceMetrics(i, args)
 	}
+
+	runAnalysis := flag.Bool("analysis", true, "Run query analysis submodule")
+	if *runAnalysis {
+		queryanalysis.RunAnalysis()
+	}
+
 }
