@@ -101,7 +101,7 @@ func main() {
 
 	runAnalysis := flag.Bool("analysis", true, "Run query analysis submodule")
 	if *runAnalysis {
-		queryanalysis.RunAnalysis()
+		queryAnalysis.RunAnalysis(instanceEntity, con, args)
 	}
 
 }
