@@ -32,6 +32,7 @@ func main() {
 	var args args.ArgumentList
 	// Create Integration
 	i, err := integration.New(integrationName, integrationVersion, integration.Args(&args))
+
 	if err != nil {
 		log.Error(err.Error())
 		os.Exit(1)
@@ -86,17 +87,17 @@ func main() {
 		metrics.PopulateInstanceMetrics(instanceEntity, con, args)
 	}
 
+	runAnalysis := flag.Bool("analysis", true, "Run query analysis submodule")
+	if *runAnalysis {
+		queryAnalysis.RunAnalysis(i, args)
+	}
+
 	// Close connection when done
 	defer con.Close()
 
 	if err = i.Publish(); err != nil {
 		log.Error(err.Error())
 		os.Exit(1)
-	}
-
-	runAnalysis := flag.Bool("analysis", true, "Run query analysis submodule")
-	if *runAnalysis {
-		queryAnalysis.RunAnalysis(instanceEntity, con, args)
 	}
 
 }
