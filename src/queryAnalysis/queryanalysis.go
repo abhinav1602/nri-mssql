@@ -30,7 +30,7 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 
 	AnalyzeSlowQueries(instanceEntity, con, arguments)
 	AnalyzeExecutionPlans(instanceEntity, con, arguments)
-	AnalyzeWaits()
+	AnalyzeWaits(instanceEntity, con, arguments)
 
 	fmt.Println("Query analysis completed.")
 }
