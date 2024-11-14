@@ -87,6 +87,11 @@ func main() {
 		metrics.PopulateInstanceMetrics(instanceEntity, con, args)
 	}
 
+	runAnalysis := flag.Bool("analysis", true, "Run query analysis submodule")
+	if *runAnalysis {
+		queryAnalysis.RunAnalysis(i, args)
+	}
+
 	// Close connection when done
 	defer con.Close()
 
@@ -97,11 +102,6 @@ func main() {
 
 	if args.EnableQueryMonitoring {
 		queryanalysis.PopulateQueryPerformanceMetrics(i, args)
-	}
-
-	runAnalysis := flag.Bool("analysis", true, "Run query analysis submodule")
-	if *runAnalysis {
-		queryAnalysis.RunAnalysis(instanceEntity, con, args)
 	}
 
 }
