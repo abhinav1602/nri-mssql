@@ -6,7 +6,8 @@ import (
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/instance"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
 )
 
 // RunAnalysis runs all types of analyses
@@ -22,6 +23,9 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 
 	queries := loadQueriesConfig()
 
+	instanceEntity, err := instance.CreateInstanceEntity(integration, sqlConnection)
+	var results interface{}
+
 	for _, queryConfig := range queries {
 		fmt.Printf("Running query: %s\n", queryConfig.Name)
 
@@ -31,53 +35,43 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 			log.Error("Could not execute query for execution plan: %s", err.Error())
 			return
 		}
+		defer rows.Close()
 
 		switch queryConfig.Type {
 		case "slowQueries":
-			var results []models.TopNSlowQueryDetails
-			err := bindResults(rows, &results)
+			var slowQueryResults []models.TopNSlowQueryDetails
+			err := bindResults(rows, &slowQueryResults)
 			if err != nil {
 				log.Error("Failed to bind results: %s", err)
 			}
+			results = slowQueryResults
 			// Process results as needed
-			fmt.Println(results)
+			fmt.Println(slowQueryResults)
 
 		case "waitAnalysis":
-			var results []models.WaitTimeAnalysis
-			err := bindResults(rows, &results)
+			var waitAnalysisResults []models.WaitTimeAnalysis
+			err := bindResults(rows, &waitAnalysisResults)
 			if err != nil {
 				log.Error("Failed to bind results: %s", err)
 			}
+			results = waitAnalysisResults
 			// Process results as needed
-			fmt.Println(results)
+			fmt.Println(waitAnalysisResults)
 
 		case "executionPlan":
-			var results []models.QueryExecutionPlan
-			err := bindResults(rows, &results)
+			var executionPlanResults []models.QueryExecutionPlan
+			err := bindResults(rows, &executionPlanResults)
 			if err != nil {
 				log.Error("Failed to bind results: %s", err)
 			}
+			results = executionPlanResults
 			// Process results as needed
-			fmt.Println(results)
+			fmt.Println(executionPlanResults)
 
 		default:
 			log.Info("Query type %s is not supported", queryConfig.Type)
 		}
-		defer rows.Close()
+
+		createAndAddMetricSet(instanceEntity, results, queryConfig.Name)
 	}
-
-	/*
-		// Create the entity for the instance
-		instanceEntity, err := instance.CreateInstanceEntity(integration, sqlConnection)
-		if err != nil {
-			log.Error("Unable to create entity for instance: %s", err.Error())
-			return
-		}
-
-		AnalyzeSlowQueries(instanceEntity, sqlConnection, arguments)
-		AnalyzeExecutionPlans(instanceEntity, sqlConnection, arguments)
-		AnalyzeWaits(instanceEntity, sqlConnection, arguments)
-
-		fmt.Println("Query analysis completed.")
-	*/
 }
