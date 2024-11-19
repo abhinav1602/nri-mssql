@@ -2,6 +2,7 @@ package queryAnalysis
 
 import (
 	"fmt"
+
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/args"
@@ -28,6 +29,10 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 	}
 
 	instanceEntity, err := instance.CreateInstanceEntity(integration, sqlConnection)
+	if err != nil {
+		log.Error("Error creating instance entity: %s", err.Error())
+		return
+	}
 	var results interface{}
 
 	for _, queryConfig := range queries {
@@ -71,6 +76,16 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 			results = executionPlanResults
 			// Process results as needed
 			fmt.Println(executionPlanResults)
+
+		case "blockingSessions":
+			var blockingSessionsResults []models.BlockingSessionQueryDetails
+			err := bindResults(rows, &blockingSessionsResults)
+			if err != nil {
+				log.Error("Failed to bind results: %s", err)
+			}
+			results = blockingSessionsResults
+			// Process results as needed
+			fmt.Println(blockingSessionsResults)
 
 		default:
 			log.Info("Query type %s is not supported", queryConfig.Type)
