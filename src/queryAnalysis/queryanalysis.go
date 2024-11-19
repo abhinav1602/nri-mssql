@@ -21,7 +21,11 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 		return
 	}
 
-	queries := loadQueriesConfig()
+	queries, err := loadQueriesConfig()
+	if err != nil {
+		log.Error("Error loading query configuration: %v", err)
+		return
+	}
 
 	instanceEntity, err := instance.CreateInstanceEntity(integration, sqlConnection)
 	var results interface{}
