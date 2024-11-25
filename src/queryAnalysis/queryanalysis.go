@@ -10,6 +10,8 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/instance"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
+	queriesLoader "github.com/newrelic/nri-mssql/src/queryAnalysis/queriesLoader"
+	queryhandler "github.com/newrelic/nri-mssql/src/queryAnalysis/queryHandler"
 )
 
 // RunAnalysis runs all types of analyses
@@ -23,15 +25,17 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 		return
 	}
 
-	queries, err := loadQueriesConfig()
-	if err != nil {
-		log.Error("Error loading query configuration: %v", err)
-		return
-	}
-
+	// create a instanceEntity
 	instanceEntity, err := instance.CreateInstanceEntity(integration, sqlConnection)
 	if err != nil {
 		log.Error("Error creating instance entity: %s", err.Error())
+		return
+	}
+
+	var queriesLoader queriesLoader.QueriesLoader = &queriesLoader.QueriesLoaderImpl{}
+	queriesDetails, err := queriesLoader.LoadQueries()
+	if err != nil {
+		log.Error("Error loading query configuration: %v", err)
 		return
 	}
 
@@ -41,63 +45,27 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 		results   interface{}
 	})
 
-	for _, queryConfig := range queries {
+	var queryhandler queryhandler.QueryHandler = &queryhandler.QueryHandlerImpl{}
+
+	for _, queryDetailsDto := range queriesDetails {
 		wg.Add(1)
-		go func(queryConfig models.QueryConfig) {
+		go func(queryDetailsDto models.QueryDetailsDto) {
 			defer wg.Done()
-			fmt.Printf("Running query: %s\n", queryConfig.Name)
-
-			// Execute the query and store the results in the executionPlans slice.
-			rows, err := executeQuery(sqlConnection.Connection, queryConfig.Query)
+			fmt.Printf("Running query: %s\n", queryDetailsDto.Name)
+			var results = queryDetailsDto.ResultStructure
+			rows, err := queryhandler.ExecuteQuery(sqlConnection.Connection, queryDetailsDto)
 			if err != nil {
-				log.Error("Could not execute query for execution plan: %s", err.Error())
-				return
+				log.Error("Failed to execute query: %s", err)
 			}
-			defer rows.Close()
-
-			var results interface{}
-			switch queryConfig.Type {
-			case "slowQueries":
-				var slowQueryResults []models.TopNSlowQueryDetails
-				err := bindResults(rows, &slowQueryResults)
-				if err != nil {
-					log.Error("Failed to bind results: %s", err)
-				}
-				results = slowQueryResults
-
-			case "waitAnalysis":
-				var waitAnalysisResults []models.WaitTimeAnalysis
-				err := bindResults(rows, &waitAnalysisResults)
-				if err != nil {
-					log.Error("Failed to bind results: %s", err)
-				}
-				results = waitAnalysisResults
-
-			case "executionPlan":
-				var executionPlanResults []models.QueryExecutionPlan
-				err := bindResults(rows, &executionPlanResults)
-				if err != nil {
-					log.Error("Failed to bind results: %s", err)
-				}
-				results = executionPlanResults
-
-			case "blockingSessions":
-				var blockingSessionsResults []models.BlockingSessionQueryDetails
-				err := bindResults(rows, &blockingSessionsResults)
-				if err != nil {
-					log.Error("Failed to bind results: %s", err)
-				}
-				results = blockingSessionsResults
-
-			default:
-				log.Info("Query type %s is not supported", queryConfig.Type)
-				return
+			err = queryhandler.BindQueryResults(rows, &results)
+			if err != nil {
+				log.Error("Failed to bind results: %s", err)
 			}
 			resultsChannel <- struct {
 				queryName string
 				results   interface{}
-			}{queryName: queryConfig.Name, results: results}
-		}(queryConfig)
+			}{queryName: queryDetailsDto.Name, results: results}
+		}(queryDetailsDto)
 	}
 
 	go func() {
@@ -106,6 +74,6 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 	}()
 
 	for result := range resultsChannel {
-		createAndAddMetricSet(instanceEntity, result.results, result.queryName)
+		queryhandler.IngestMetrics(instanceEntity, result.results, result.queryName)
 	}
 }
