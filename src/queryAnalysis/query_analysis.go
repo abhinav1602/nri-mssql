@@ -52,7 +52,7 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 		go func(queryDetailsDto models.QueryDetailsDto) {
 			defer wg.Done()
 			fmt.Printf("Running query: %s\n", queryDetailsDto.Name)
-			var results = queryDetailsDto.ResultStructure
+			var results = queryDetailsDto.ResponseDetail
 			rows, err := queryhandler.ExecuteQuery(sqlConnection.Connection, queryDetailsDto)
 			if err != nil {
 				log.Error("Failed to execute query: %s", err)
