@@ -12,6 +12,7 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
 	queriesLoader "github.com/newrelic/nri-mssql/src/queryAnalysis/queriesLoader"
 	queryhandler "github.com/newrelic/nri-mssql/src/queryAnalysis/queryHandler"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/retryMechanism"
 )
 
 // RunAnalysis runs all types of analyses
@@ -33,6 +34,7 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 	}
 
 	var queriesLoader queriesLoader.QueriesLoader = &queriesLoader.QueriesLoaderImpl{}
+	var retryMechanism retryMechanism.RetryMechanism = &retryMechanism.RetryMechanismImpl{}
 	queriesDetails, err := queriesLoader.LoadQueries()
 	if err != nil {
 		log.Error("Error loading query configuration: %v", err)
@@ -53,13 +55,17 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 			defer wg.Done()
 			fmt.Printf("Running query: %s\n", queryDetailsDto.Name)
 			var results = queryDetailsDto.ResponseDetail
-			rows, err := queryhandler.ExecuteQuery(sqlConnection.Connection, queryDetailsDto)
+			err := retryMechanism.Retry(func() error {
+				rows, err := queryhandler.ExecuteQuery(sqlConnection.Connection, queryDetailsDto)
+				if err != nil {
+					log.Error("Failed to execute query: %s", err)
+					return err
+				}
+				return queryhandler.BindQueryResults(rows, &results)
+			})
 			if err != nil {
-				log.Error("Failed to execute query: %s", err)
-			}
-			err = queryhandler.BindQueryResults(rows, &results)
-			if err != nil {
-				log.Error("Failed to bind results: %s", err)
+				log.Error("Failed to execute and bind query results after retries: %s", err)
+				return
 			}
 			resultsChannel <- struct {
 				queryName string
@@ -74,6 +80,11 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 	}()
 
 	for result := range resultsChannel {
-		queryhandler.IngestMetrics(instanceEntity, result.results, result.queryName)
+		err := retryMechanism.Retry(func() error {
+			return queryhandler.IngestMetrics(instanceEntity, result.results, result.queryName)
+		})
+		if err != nil {
+			log.Error("Failed to ingest metrics after retries: %s", err)
+		}
 	}
 }
