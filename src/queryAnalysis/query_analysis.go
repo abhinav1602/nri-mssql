@@ -10,8 +10,8 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/instance"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
-	queriesLoader "github.com/newrelic/nri-mssql/src/queryAnalysis/queriesLoader"
-	queryhandler "github.com/newrelic/nri-mssql/src/queryAnalysis/queryHandler"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/queriesLoader"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/queryHandler"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/retryMechanism"
 )
 
@@ -35,6 +35,7 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 
 	var queriesLoader queriesLoader.QueriesLoader = &queriesLoader.QueriesLoaderImpl{}
 	var retryMechanism retryMechanism.RetryMechanism = &retryMechanism.RetryMechanismImpl{}
+
 	queriesDetails, err := queriesLoader.LoadQueries()
 	if err != nil {
 		log.Error("Error loading query configuration: %v", err)
@@ -44,7 +45,7 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 	var wg sync.WaitGroup
 	resultsChannel := make(chan struct {
 		queryName string
-		results   interface{}
+		result    interface{}
 	})
 
 	var queryhandler queryhandler.QueryHandler = &queryhandler.QueryHandlerImpl{}
@@ -64,13 +65,27 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 				return queryhandler.BindQueryResults(rows, &results)
 			})
 			if err != nil {
-				log.Error("Failed to execute and bind query results after retries: %s", err)
+				log.Error("Failed to execute and bind query result after retries: %s", err)
 				return
 			}
+
+			// Process slow queries and fetch execution plans
+			if queryDetailsDto.Name == "MSSQLTopSlowQueries" {
+				slowQueryResults, ok := results.([]models.TopNSlowQueryDetails)
+				if ok {
+					err := queryhandler.ProcessSlowQueries(sqlConnection.Connection, slowQueryResults, entity, queryhandler)
+					if err != nil {
+						return
+					}
+				} else {
+					log.Error("Failed to cast results to []models.TopNSlowQueryDetails")
+				}
+			}
+
 			resultsChannel <- struct {
 				queryName string
-				results   interface{}
-			}{queryName: queryDetailsDto.Name, results: results}
+				result    interface{}
+			}{queryName: queryDetailsDto.Name, result: results}
 		}(queryDetailsDto)
 	}
 
@@ -79,9 +94,9 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 		close(resultsChannel)
 	}()
 
-	for result := range resultsChannel {
+	for channel := range resultsChannel {
 		err := retryMechanism.Retry(func() error {
-			return queryhandler.IngestMetrics(instanceEntity, result.results, result.queryName)
+			return queryhandler.IngestMetrics(instanceEntity, channel.result, channel.queryName)
 		})
 		if err != nil {
 			log.Error("Failed to ingest metrics after retries: %s", err)
