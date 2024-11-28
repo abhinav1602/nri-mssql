@@ -3,7 +3,7 @@ package models
 type QueryExecutionPlan struct {
 	SQLText                string  `json:"sql_text" db:"sql_text"`
 	QueryPlanText          string  `json:"query_plan_text" db:"query_plan_text"`
-	NodeId                 int     `json:"node_id" db:"NodeId"`
+	NodeId                 int64   `json:"node_id" db:"NodeId"`
 	PhysicalOp             string  `json:"physical_op" db:"PhysicalOp"`
 	LogicalOp              string  `json:"logical_op" db:"LogicalOp"`
 	EstimateRows           float64 `json:"estimate_rows" db:"EstimateRows"`
@@ -17,5 +17,5 @@ type QueryExecutionPlan struct {
 	TotalElapsedTime       int64   `json:"total_elapsed_time" db:"total_elapsed_time"`
 	TotalLogicalReads      int64   `json:"total_logical_reads" db:"total_logical_reads"`
 	TotalLogicalWrites     int64   `json:"total_logical_writes" db:"total_logical_writes"`
-	ExecutionCount         int     `json:"execution_count" db:"execution_count"`
+	ExecutionCount         int64   `json:"execution_count" db:"execution_count"`
 }
