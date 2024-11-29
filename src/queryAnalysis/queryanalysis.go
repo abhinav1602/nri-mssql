@@ -9,6 +9,7 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/instance"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/validation"
 )
 
 // RunAnalysis runs all types of analyses
@@ -21,6 +22,7 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 		log.Error("Error creating connection to SQL Server: %s", err.Error())
 		return
 	}
+	validation.ValidatePreConditions(sqlConnection)
 
 	queries, err := loadQueriesConfig()
 	if err != nil {
