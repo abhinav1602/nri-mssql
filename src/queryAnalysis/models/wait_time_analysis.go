@@ -1,8 +1,9 @@
 package models
 
 import (
-	"github.com/jmoiron/sqlx"
 	"time"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type WaitTimeAnalysis struct {
@@ -14,6 +15,6 @@ type WaitTimeAnalysis struct {
 	WaitCategory        string    `db:"wait_category" json:"wait_category"`
 	TotalWaitTimeMs     float64   `db:"total_wait_time_ms" json:"total_wait_time_ms"`
 	AvgWaitTimeMs       float64   `db:"avg_wait_time_ms" json:"avg_wait_time_ms"`
-	WaitEventCount      int       `db:"wait_event_count" json:"wait_event_count"`
+	WaitEventCount      int64     `db:"wait_event_count" json:"wait_event_count"`
 	CollectionTimestamp time.Time `db:"collection_timestamp"`
 }
