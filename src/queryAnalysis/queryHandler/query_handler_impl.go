@@ -91,6 +91,20 @@ func (q *QueryHandlerImpl) BindQueryResults(rows *sqlx.Rows, queryDetailsDto mod
 		default:
 			return nil, fmt.Errorf("unknown query type: %s", queryDetailsDto.Type)
 		}
+		/*
+			// Process slow queries and fetch execution plans
+			if queryDetailsDto.Name == "MSSQLTopSlowQueries" {
+				slowQueryResults, ok := results.([]models.TopNSlowQueryDetails)
+				if ok {
+					err := queryhandler.ProcessSlowQueries(sqlConnection.Connection, slowQueryResults, instanceEntity, queryhandler)
+					if err != nil {
+						return nil
+					}
+				} else {
+					log.Error("Failed to cast results to []models.TopNSlowQueryDetails")
+				}
+			}
+		*/
 	}
 	return results, nil
 

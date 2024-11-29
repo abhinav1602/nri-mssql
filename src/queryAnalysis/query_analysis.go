@@ -2,6 +2,7 @@ package queryAnalysis
 
 import (
 	"fmt"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/constants"
 	"sync"
 
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
@@ -62,20 +63,21 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 					return err
 				}
 
-				/*
-					// Process slow queries and fetch execution plans
-					if queryDetailsDto.Name == "MSSQLTopSlowQueries" {
-						slowQueryResults, ok := results.([]models.TopNSlowQueryDetails)
-						if ok {
-							err := queryhandler.ProcessSlowQueries(sqlConnection.Connection, slowQueryResults, instanceEntity, queryhandler)
-							if err != nil {
-								return nil
+				if queryDetailsDto.Name == "MSSQLTopSlowQueries" {
+					for _, result := range results {
+						slowQuery, ok := result.(models.TopNSlowQueryDetails)
+						if ok && slowQuery.QueryID != nil {
+							newQueryDetails := models.QueryDetailsDto{
+								Type:  "executionPlan",
+								Name:  "MSSQLExecutionPlans",
+								Query: fmt.Sprintf(constants.ExecutionPlanQueryTemplate, *slowQuery.QueryID),
 							}
+							queriesDetails = append(queriesDetails, newQueryDetails)
 						} else {
-							log.Error("Failed to cast results to []models.TopNSlowQueryDetails")
+							log.Error("Failed to cast result to models.TopNSlowQueryDetails or QueryID is nil")
 						}
 					}
-				*/
+				}
 
 				return nil
 			})
