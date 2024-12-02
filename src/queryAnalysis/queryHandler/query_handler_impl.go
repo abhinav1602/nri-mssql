@@ -50,6 +50,11 @@ func (q *QueryHandlerImpl) ExecuteQuery(db *sqlx.DB, queryDetailsDto models.Quer
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 
+	return q.BindQueryResults(rows, queryDetailsDto)
+}
+
+// BindQueryResults binds query results to the specified data model using `sqlx`
+func (q *QueryHandlerImpl) BindQueryResults(rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
 	defer rows.Close()
 
 	results := make([]interface{}, 0)

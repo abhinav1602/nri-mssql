@@ -2,6 +2,7 @@ package queryAnalysis
 
 import (
 	"fmt"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/constants"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/validation"
 	"sync"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/instance"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
-	queryhandler "github.com/newrelic/nri-mssql/src/queryAnalysis/queryHandler"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/queryHandler"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/retryMechanism"
 )
 
@@ -70,11 +71,27 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 					log.Error("Failed to ingest metrics: %s", err)
 					return err
 				}
+
+				if queryDetailsDto.Name == "MSSQLTopSlowQueries" {
+					for _, result := range results {
+						slowQuery, ok := result.(models.TopNSlowQueryDetails)
+						if ok && slowQuery.QueryID != nil {
+							newQueryDetails := models.QueryDetailsDto{
+								Type:  "executionPlan",
+								Name:  "MSSQLExecutionPlans",
+								Query: fmt.Sprintf(constants.ExecutionPlanQueryTemplate, *slowQuery.QueryID),
+							}
+							queriesDetails = append(queriesDetails, newQueryDetails)
+						} else {
+							log.Error("Failed to cast result to models.TopNSlowQueryDetails or QueryID is nil")
+						}
+					}
+				}
+
 				return nil
 			})
 
 			if err != nil {
-
 				log.Error("Failed after retries: %s", err)
 			}
 		}(queryDetailsDto) // Pass queryDetailsDto as a parameter to avoid closure capture issues
@@ -82,5 +99,4 @@ func RunAnalysis(integration *integration.Integration, arguments args.ArgumentLi
 
 	// Wait for all goroutines to complete
 	wg.Wait()
-
 }
