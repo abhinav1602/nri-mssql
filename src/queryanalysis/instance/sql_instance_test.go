@@ -6,12 +6,10 @@ import (
 	"testing"
 
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
-
-var ErrMockQueryFailure = errors.New("mock query failure")
 
 func Test_createInstanceEntity_QueryError(t *testing.T) {
 	i, err := integration.New("test", "1.0.0")
@@ -22,7 +20,7 @@ func Test_createInstanceEntity_QueryError(t *testing.T) {
 
 	conn, mock := connection.CreateMockSQL(t)
 
-	mock.ExpectQuery(instanceNameQuery).WillReturnError(ErrMockQueryFailure)
+	mock.ExpectQuery(instanceNameQuery).WillReturnError(errors.New("error"))
 
 	if _, err := CreateInstanceEntity(i, conn); err == nil {
 		t.Error("Did not return expected error")

@@ -3,17 +3,14 @@ package instance
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 )
 
 // instanceNameQuery gets the instance name
 const instanceNameQuery = "select COALESCE( @@SERVERNAME, SERVERPROPERTY('ServerName'), SERVERPROPERTY('MachineName')) as instance_name"
-
-var ErrExpectedOneRow = errors.New("expected 1 row for instance name")
 
 // NameRow is a row result in the instanceNameQuery
 type NameRow struct {
@@ -28,7 +25,7 @@ func CreateInstanceEntity(i *integration.Integration, con *connection.SQLConnect
 	}
 
 	if length := len(instanceRows); length != 1 {
-		return nil, fmt.Errorf("%w, but got %d", ErrExpectedOneRow, length)
+		return nil, fmt.Errorf("expected 1 row for instance name got %d", length)
 	}
 
 	if instanceRows[0].Name.Valid {

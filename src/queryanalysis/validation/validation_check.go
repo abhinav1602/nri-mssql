@@ -2,85 +2,64 @@ package validation
 
 import (
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 )
 
-const versionCompatibility = 90
-
 // ValidatePreConditions checks if the database is compatible with the integration
-func ValidatePreConditions(sqlConnection *connection.SQLConnection) bool {
-	log.Debug("Starting pre-requisite validation")
-
-	databaseDetails, err := GetDatabaseDetails(sqlConnection)
+func ValidatePreConditions(sqlConnection *connection.SQLConnection) (bool, error) {
+	// Get database name
+	databaseName, err := GetDatabaseName(sqlConnection)
 	if err != nil {
-		log.Error("Error getting database details:", err)
-		return false
+		log.Error("Error getting database name:", err)
+		return false, err
 	}
 
-	if !checkDatabaseCompatibility(databaseDetails) || !queryStoresAreEnabledForAnyDB(databaseDetails) {
-		return false
-	}
+	if databaseName != "" {
 
-	if !checkPermissionsAndLogin(sqlConnection) {
-		return false
-	}
-
-	log.Debug("Pre-requisite validation completed successfully")
-	return true
-}
-
-func checkDatabaseCompatibility(databaseDetails []models.DatabaseDetailsDto) bool {
-	allCompatible := true
-	for _, database := range databaseDetails {
-		if database.Compatibility > versionCompatibility {
-			log.Debug("Database %s is compatible with the integration", database.Name)
-		} else {
-			log.Debug("Database %s is not compatible with the integration", database.Name)
-			allCompatible = false
+		// Database version compatibility check
+		isDatabaseVersionCompatible, err := checkDatabaseVersionCompatibilityLevel(sqlConnection)
+		if err != nil {
+			log.Error("Error checking compatibility level:", err)
+			return false, err
 		}
-	}
-	if !allCompatible {
-		log.Error("Some databases are not compatible with the integration. Upgrade the database: https://docs.newrelic.com/install/microsoft-sql/")
-	}
-	return allCompatible
-}
 
-func checkPermissionsAndLogin(sqlConnection *connection.SQLConnection) bool {
-	hasPerms, err := checkPermissions(sqlConnection)
-	if err != nil {
-		log.Error("Error checking permissions:", err)
-		return false
-	}
-	if !hasPerms {
-		log.Error("Missing permissions to access sys.dm_exec_query_stats. Obtain permissions: https://docs.newrelic.com/install/microsoft-sql/")
-		return false
-	}
+		// Query Store check
+		isQueryStoreEnabled, err := checkQueryStoreEnabled(sqlConnection, databaseName)
+		if err != nil {
 
-	isLoginEnabled, err := checkSQLServerLoginEnabled(sqlConnection)
-	if err != nil {
-		log.Error("Error checking if SQL Server login is enabled:", err)
-		return false
-	}
-	if !isLoginEnabled {
-		log.Error("SQL Server login not enabled. Enable login: https://learn.microsoft.com/en-us/sql/database-engine/configure-windows/change-server-authentication-mode?view=sql-server-ver16&tabs=ssms")
-		return false
-	}
-	return true
-}
-
-func queryStoresAreEnabledForAnyDB(databaseDetails []models.DatabaseDetailsDto) bool {
-	allQueryStoresOff := true
-	for _, database := range databaseDetails {
-		if database.IsQueryStoreOn {
-			log.Debug("Query store is enabled for this database %s. Please ensure that the query capture mode is set to \"ALL\" to capture all queries.", database.Name)
-			allQueryStoresOff = false
-		} else {
-			log.Debug("Query store is disabled for this database %s, so query monitoring will be skipped. To enable it, use the following command: `ALTER DATABASE %s SET QUERY_STORE = ON (QUERY_CAPTURE_MODE = ALL);", database.Name, database.Name)
+			log.Error("Error checking if Query Store is enabled:", err)
+			return false, err
 		}
+		// Permissions check
+		hasPermissions, err := checkPermissions(sqlConnection)
+		if err != nil {
+			log.Error("Error checking permissions:", err)
+		}
+
+		// SQL Server login check
+		isSQLServerLoginEnabled, err := checkSQLServerLoginEnabled(sqlConnection)
+		if err != nil {
+			log.Error("Error checking if SQL Server login is enabled:", err)
+		}
+		//Tcp
+		isTcpEnabled, err := checkTcpEnabled(sqlConnection)
+		if err != nil {
+			log.Error("Error checking if TCP is enabled:", err)
+		}
+
+		return isDatabaseVersionCompatible && isQueryStoreEnabled && hasPermissions && isSQLServerLoginEnabled && isTcpEnabled, nil
 	}
-	if allQueryStoresOff {
-		log.Error("Query store is currently turned off for all databases, so query monitoring will be skipped. To enable it and set the capture mode to \"ALL,\" please refer to this guide: [New Relic Documentation for Microsoft SQL](https://docs.newrelic.com/install/microsoft-sql/).")
+
+	return false, nil
+}
+
+// GetDatabaseName gets the name of the database
+func GetDatabaseName(sqlConnection *connection.SQLConnection) (string, error) {
+	var databaseName string
+	err := sqlConnection.Connection.Get(&databaseName, "SELECT DB_NAME()")
+	if err != nil {
+		return "", err
 	}
-	return !allQueryStoresOff
+	return databaseName, nil
+
 }
