@@ -58,35 +58,17 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 			defer wg.Done()
 
 			err := retryMechanism.Retry(func() error {
-				queryResults, err := ExecuteQuery(sqlConnection.Connection, queryDetailsDto)
+				queryResults, err := ExecuteQuery(instanceEntity, sqlConnection.Connection, queryDetailsDto)
 				if err != nil {
 					log.Error("Failed to execute query: %s", err)
 					return err
 				}
 				//Anonymize query results
-				//anonymizedQuery, err := AnonymizeQuery(queryResults)
 				err = IngestQueryMetrics(instanceEntity, queryResults, queryDetailsDto)
 				if err != nil {
 					log.Error("Failed to ingest metrics: %s", err)
 					return err
 				}
-
-				//if queryDetailsDto.Name == "MSSQLTopSlowQueries" {
-				//	for _, result := range queryResults {
-				//		slowQuery, ok := result.(models.TopNSlowQueryDetails)
-				//		if ok && slowQuery.QueryID != nil {
-				//			newQueryDetails := models.QueryDetailsDto{
-				//				Type:  "executionPlan",
-				//				Name:  "MSSQLExecutionPlans",
-				//				Query: fmt.Sprintf(config.ExecutionPlanQueryTemplate, *slowQuery.QueryID),
-				//			}
-				//			queryDetails = append(queryDetails, newQueryDetails)
-				//		} else {
-				//			log.Error("Failed to cast result to models.TopNSlowQueryDetails or QueryID is nil")
-				//		}
-				//	}
-				//}
-
 				return nil
 			})
 
