@@ -2,7 +2,6 @@ package queryAnalysis
 
 import (
 	"fmt"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/config"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/validation"
 	"sync"
 
@@ -37,10 +36,10 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 	}
 
 	// Validate preconditions
-	_, err = validation.ValidatePreConditions(sqlConnection)
+	err = validation.ValidatePreConditions(sqlConnection)
 	if err != nil {
 		log.Error("Error validating preconditions: %s", err.Error())
-		return
+		return // Abort further operations if validations fail
 	}
 
 	var retryMechanism retryMechanism.RetryMechanism = &retryMechanism.RetryMechanismImpl{}
@@ -66,35 +65,17 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 			fmt.Printf("Running query: %s\n", queryDetailsDto.Name)
 			var results = queryDetailsDto.ResponseDetail
 			err := retryMechanism.Retry(func() error {
-				queryResults, err := ExecuteQuery(sqlConnection.Connection, queryDetailsDto)
+				queryResults, err := ExecuteQuery(instanceEntity, sqlConnection.Connection, queryDetailsDto)
 				if err != nil {
 					log.Error("Failed to execute query: %s", err)
 					return err
 				}
 				//Anonymize query results
-				//anonymizedQuery, err := AnonymizeQuery(queryResults)
 				err = IngestQueryMetrics(instanceEntity, queryResults, queryDetailsDto)
 				if err != nil {
 					log.Error("Failed to ingest metrics: %s", err)
 					return err
 				}
-
-				if queryDetailsDto.Name == "MSSQLTopSlowQueries" {
-					for _, result := range queryResults {
-						slowQuery, ok := result.(models.TopNSlowQueryDetails)
-						if ok && slowQuery.QueryID != nil {
-							newQueryDetails := models.QueryDetailsDto{
-								Type:  "executionPlan",
-								Name:  "MSSQLExecutionPlans",
-								Query: fmt.Sprintf(config.ExecutionPlanQueryTemplate, *slowQuery.QueryID),
-							}
-							queryDetails = append(queryDetails, newQueryDetails)
-						} else {
-							log.Error("Failed to cast result to models.TopNSlowQueryDetails or QueryID is nil")
-						}
-					}
-				}
-
 				return nil
 			})
 			if err != nil {
