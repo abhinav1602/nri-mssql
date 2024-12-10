@@ -75,7 +75,7 @@ func BindQueryResults(entity *integration.Entity, db *sqlx.DB, rows *sqlx.Rows, 
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				//GenerateAndInjestExecutionPlan(entity, db, queryId, integration)
+				GenerateAndInjestExecutionPlan(entity, db, queryId, integration)
 			}()
 		case "waitAnalysis":
 			var model models.WaitTimeAnalysisReceiver
