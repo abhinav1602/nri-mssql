@@ -28,7 +28,7 @@ func LoadQueries() ([]models.QueryDetailsDto, error) {
 	return queries, nil
 }
 
-func ExecuteQuery(entity *integration.Entity, db *sqlx.DB, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
+func ExecuteQuery(entity *integration.Entity, db *sqlx.DB, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration) ([]interface{}, error) {
 	fmt.Println("Executing query...", queryDetailsDto.Name)
 
 	rows, err := db.Queryx(queryDetailsDto.Query)
@@ -36,11 +36,11 @@ func ExecuteQuery(entity *integration.Entity, db *sqlx.DB, queryDetailsDto model
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 
-	return BindQueryResults(entity, db, rows, queryDetailsDto)
+	return BindQueryResults(entity, db, rows, queryDetailsDto, integration)
 }
 
 // BindQueryResults binds query results to the specified data model using `sqlx`
-func BindQueryResults(entity *integration.Entity, db *sqlx.DB, rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
+func BindQueryResults(entity *integration.Entity, db *sqlx.DB, rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration) ([]interface{}, error) {
 	defer rows.Close()
 
 	results := make([]interface{}, 0)
@@ -75,7 +75,7 @@ func BindQueryResults(entity *integration.Entity, db *sqlx.DB, rows *sqlx.Rows, 
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				GenerateAndInjestExecutionPlan(entity, db, queryId)
+				//GenerateAndInjestExecutionPlan(entity, db, queryId, integration)
 			}()
 		case "waitAnalysis":
 			var model models.WaitTimeAnalysisReceiver
@@ -113,7 +113,7 @@ func BindQueryResults(entity *integration.Entity, db *sqlx.DB, rows *sqlx.Rows, 
 
 }
 
-func GenerateAndInjestExecutionPlan(entity *integration.Entity, db *sqlx.DB, queryId string) {
+func GenerateAndInjestExecutionPlan(entity *integration.Entity, db *sqlx.DB, queryId string, integration *integration.Integration) {
 	hexQueryId := fmt.Sprintf("%s", queryId)
 	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, hexQueryId)
 
@@ -144,20 +144,20 @@ func GenerateAndInjestExecutionPlan(entity *integration.Entity, db *sqlx.DB, que
 	}
 
 	// Ingest the execution plan
-	if err := IngestQueryMetrics(entity, results, queryDetailsDto); err != nil {
+	if err := IngestQueryMetrics(entity, results, queryDetailsDto, integration); err != nil {
 		log.Error("Failed to ingest execution plan: %s", err)
 	}
 }
 
 // IngestQueryMetrics processes and ingests query metrics into the New Relic entity
-func IngestQueryMetrics(entity *integration.Entity, results []interface{}, queryDetailsDto models.QueryDetailsDto) error {
+func IngestQueryMetrics(entity *integration.Entity, results []interface{}, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration) error {
 
 	if queryDetailsDto.Name == "MSSQLQueryExecutionPlans" {
 		fmt.Println("QueryDetails::::::::::::::::", queryDetailsDto)
 		fmt.Println("ExecutionPlan Result", results)
 	}
 
-	for i, result := range results {
+	for _, result := range results {
 		// Convert the result into a map[string]interface{} for dynamic key-value access
 		var resultMap map[string]interface{}
 		data, err := json.Marshal(result)
@@ -184,8 +184,33 @@ func IngestQueryMetrics(entity *integration.Entity, results []interface{}, query
 				metricSet.SetMetric(key, strValue, metric.ATTRIBUTE)
 			}
 		}
-		fmt.Println("Ingested Row:", i, string(data))
 	}
+	err := integration.Publish()
+	if err != nil {
+		return err
+	}
+	integration.Clear()
+
+	return nil
+}
+
+func IngestQueryMetricsInBatches(entity *integration.Entity, results []interface{}, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration) error {
+	const batchSize = 800
+
+	for start := 0; start < len(results); start += batchSize {
+		end := start + batchSize
+		if end > len(results) {
+			end = len(results)
+		}
+
+		batchResult := results[start:end]
+		fmt.Printf("Processing batch: %d to %d\n", start, end)
+
+		if err := IngestQueryMetrics(entity, batchResult, queryDetailsDto, integration); err != nil {
+			return fmt.Errorf("error ingesting batch from %d to %d: %w", start, end, err)
+		}
+	}
+
 	return nil
 }
 

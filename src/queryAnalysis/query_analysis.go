@@ -58,13 +58,13 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 			defer wg.Done()
 
 			err := retryMechanism.Retry(func() error {
-				queryResults, err := ExecuteQuery(instanceEntity, sqlConnection.Connection, queryDetailsDto)
+				queryResults, err := ExecuteQuery(instanceEntity, sqlConnection.Connection, queryDetailsDto, integration)
 				if err != nil {
 					log.Error("Failed to execute query: %s", err)
 					return err
 				}
 				//Anonymize query results
-				err = IngestQueryMetrics(instanceEntity, queryResults, queryDetailsDto)
+				err = IngestQueryMetricsInBatches(instanceEntity, queryResults, queryDetailsDto, integration)
 				if err != nil {
 					log.Error("Failed to ingest metrics: %s", err)
 					return err
