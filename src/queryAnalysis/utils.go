@@ -5,16 +5,16 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/newrelic/infra-integrations-sdk/v3/log"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/config"
-	"regexp"
-	"strconv"
-	"sync"
-
 	"github.com/jmoiron/sqlx"
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
+	"github.com/newrelic/infra-integrations-sdk/v3/log"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/config"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/instance"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
+	"regexp"
+	"strconv"
 )
 
 //go:embed config/queries.json
@@ -28,23 +28,23 @@ func LoadQueries() ([]models.QueryDetailsDto, error) {
 	return queries, nil
 }
 
-func ExecuteQuery(entity *integration.Entity, db *sqlx.DB, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration) ([]interface{}, error) {
+func ExecuteQuery(queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
 	fmt.Println("Executing query...", queryDetailsDto.Name)
 
-	rows, err := db.Queryx(queryDetailsDto.Query)
+	rows, err := sqlConnection.Connection.Queryx(queryDetailsDto.Query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 
-	return BindQueryResults(entity, db, rows, queryDetailsDto, integration)
+	return BindQueryResults(rows, queryDetailsDto, integration, sqlConnection)
 }
 
 // BindQueryResults binds query results to the specified data model using `sqlx`
-func BindQueryResults(entity *integration.Entity, db *sqlx.DB, rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration) ([]interface{}, error) {
+func BindQueryResults(rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
 	defer rows.Close()
 
 	results := make([]interface{}, 0)
-	var wg sync.WaitGroup
+	//var wg sync.WaitGroup
 
 	for rows.Next() {
 		switch queryDetailsDto.Type {
@@ -72,11 +72,7 @@ func BindQueryResults(entity *integration.Entity, db *sqlx.DB, rows *sqlx.Rows, 
 			results = append(results, modelIngestor)
 
 			// fetch and generate execution plan
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				GenerateAndInjestExecutionPlan(entity, db, queryId, integration)
-			}()
+			GenerateAndInjestExecutionPlan(queryId, integration, sqlConnection)
 		case "waitAnalysis":
 			var model models.WaitTimeAnalysisReceiver
 			if err := rows.StructScan(&model); err != nil {
@@ -113,13 +109,13 @@ func BindQueryResults(entity *integration.Entity, db *sqlx.DB, rows *sqlx.Rows, 
 
 }
 
-func GenerateAndInjestExecutionPlan(entity *integration.Entity, db *sqlx.DB, queryId string, integration *integration.Integration) {
+func GenerateAndInjestExecutionPlan(queryId string, integration *integration.Integration, sqlConnection *connection.SQLConnection) {
 	hexQueryId := fmt.Sprintf("%s", queryId)
 	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, hexQueryId)
 
 	var model models.ExecutionPlanResult
 
-	rows, err := db.Queryx(executionPlanQuery)
+	rows, err := sqlConnection.Connection.Queryx(executionPlanQuery)
 	if err != nil {
 		log.Error("Failed to execute query: %s", err)
 		return
@@ -143,19 +139,16 @@ func GenerateAndInjestExecutionPlan(entity *integration.Entity, db *sqlx.DB, que
 		Type:  "executionPlan",
 	}
 
-	// Ingest the execution plan
-	if err := IngestQueryMetrics(entity, results, queryDetailsDto, integration); err != nil {
+	//Ingest the execution plan
+	if err := IngestQueryMetricsInBatches(results, queryDetailsDto, integration, sqlConnection); err != nil {
 		log.Error("Failed to ingest execution plan: %s", err)
 	}
 }
 
 // IngestQueryMetrics processes and ingests query metrics into the New Relic entity
-func IngestQueryMetrics(entity *integration.Entity, results []interface{}, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration) error {
+func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) error {
 
-	if queryDetailsDto.Name == "MSSQLQueryExecutionPlans" {
-		fmt.Println("QueryDetails::::::::::::::::", queryDetailsDto)
-		fmt.Println("ExecutionPlan Result", results)
-	}
+	instanceEntity, err := instance.CreateInstanceEntity(integration, sqlConnection)
 
 	for _, result := range results {
 		// Convert the result into a map[string]interface{} for dynamic key-value access
@@ -170,7 +163,7 @@ func IngestQueryMetrics(entity *integration.Entity, results []interface{}, query
 		}
 
 		// Create a new metric set with the query name
-		metricSet := entity.NewMetricSet(queryDetailsDto.Name)
+		metricSet := instanceEntity.NewMetricSet(queryDetailsDto.Name)
 
 		// Iterate over the map and add each key-value pair as a metric
 		for key, value := range resultMap {
@@ -185,7 +178,7 @@ func IngestQueryMetrics(entity *integration.Entity, results []interface{}, query
 			}
 		}
 	}
-	err := integration.Publish()
+	err = integration.Publish()
 	if err != nil {
 		return err
 	}
@@ -194,8 +187,8 @@ func IngestQueryMetrics(entity *integration.Entity, results []interface{}, query
 	return nil
 }
 
-func IngestQueryMetricsInBatches(entity *integration.Entity, results []interface{}, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration) error {
-	const batchSize = 800
+func IngestQueryMetricsInBatches(results []interface{}, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) error {
+	const batchSize = 100
 
 	for start := 0; start < len(results); start += batchSize {
 		end := start + batchSize
@@ -204,9 +197,9 @@ func IngestQueryMetricsInBatches(entity *integration.Entity, results []interface
 		}
 
 		batchResult := results[start:end]
-		fmt.Printf("Processing batch: %d to %d\n", start, end)
+		fmt.Printf("Processing batch of %s: startIndex: %d to endIndex: %d totalLength: %d \n", queryDetailsDto.Name, start, end, len(results))
 
-		if err := IngestQueryMetrics(entity, batchResult, queryDetailsDto, integration); err != nil {
+		if err := IngestQueryMetrics(batchResult, queryDetailsDto, integration, sqlConnection); err != nil {
 			return fmt.Errorf("error ingesting batch from %d to %d: %w", start, end, err)
 		}
 	}
