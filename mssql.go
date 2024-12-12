@@ -93,8 +93,6 @@ func main() {
 		log.Error(err.Error())
 	}
 
-	i.Clear()
-
 	if args.EnableQueryPerformance {
 		queryAnalysis.QueryPerformanceMain(i, args)
 	}

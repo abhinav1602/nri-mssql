@@ -44,7 +44,6 @@ func BindQueryResults(rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto, i
 	defer rows.Close()
 
 	results := make([]interface{}, 0)
-	//var wg sync.WaitGroup
 
 	for rows.Next() {
 		switch queryDetailsDto.Type {
@@ -72,7 +71,7 @@ func BindQueryResults(rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto, i
 			results = append(results, modelIngestor)
 
 			// fetch and generate execution plan
-			GenerateAndInjestExecutionPlan(queryId, integration, sqlConnection)
+			//GenerateAndInjestExecutionPlan(queryId, integration, sqlConnection)
 		case "waitAnalysis":
 			var model models.WaitTimeAnalysisReceiver
 			if err := rows.StructScan(&model); err != nil {
@@ -188,7 +187,7 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 }
 
 func IngestQueryMetricsInBatches(results []interface{}, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) error {
-	const batchSize = 100
+	const batchSize = 10
 
 	for start := 0; start < len(results); start += batchSize {
 		end := start + batchSize
