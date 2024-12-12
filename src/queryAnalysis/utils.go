@@ -5,8 +5,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/newrelic/infra-integrations-sdk/v3/log"
+	"github.com/newrelic/nri-mssql/src/args"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/config"
 	"regexp"
 	"strconv"
+	"sync"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
@@ -14,18 +18,26 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
 )
 
-//go:embed config/queries.json
-var queriesJSON []byte
+func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
+	var queries []models.QueryDetailsDto = config.Queries
 
-func LoadQueries() ([]models.QueryDetailsDto, error) {
-	var queries []models.QueryDetailsDto
-	if err := json.Unmarshal(queriesJSON, &queries); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal queries configuration: %w", err)
+	for i := range queries {
+		switch queries[i].Type {
+		case "slowQueries":
+			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval, arguments.SlowQueryCount, arguments.SlowQueryThreshold)
+		case "waitAnalysis":
+			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval)
+		case "blockingSessions":
+			continue
+		default:
+			fmt.Println("Unknown query type:", queries[i].Type)
+		}
 	}
+
 	return queries, nil
 }
 
-func ExecuteQuery(db *sqlx.DB, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
+func ExecuteQuery(interval int, entity *integration.Entity, db *sqlx.DB, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
 	fmt.Println("Executing query...", queryDetailsDto.Name)
 
 	rows, err := db.Queryx(queryDetailsDto.Query)
@@ -33,24 +45,15 @@ func ExecuteQuery(db *sqlx.DB, queryDetailsDto models.QueryDetailsDto) ([]interf
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 
-	return BindQueryResults(rows, queryDetailsDto)
+	return BindQueryResults(interval, entity, db, rows, queryDetailsDto)
 }
 
-//func ConvertBytesToInt(incoming []uint8) (int, error) {
-//	var m *models.TopNSlowQueryDetails
-//	if len(incoming) >= 4 {
-//		m.queryID = int(binary.LittleEndian.Uint32(incoming))
-//	} else {
-//		m.queryID = 0 // or handle the error as you see fit
-//	}
-//	return m.queryID, nil
-//}
-
 // BindQueryResults binds query results to the specified data model using `sqlx`
-func BindQueryResults(rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
+func BindQueryResults(interval int, entity *integration.Entity, db *sqlx.DB, rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
 	defer rows.Close()
 
 	results := make([]interface{}, 0)
+	var wg sync.WaitGroup
 
 	for rows.Next() {
 		switch queryDetailsDto.Type {
@@ -76,6 +79,14 @@ func BindQueryResults(rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto) (
 			modelIngestor.StatementType = model.StatementType
 			modelIngestor.CollectionTimestamp = model.CollectionTimestamp
 			results = append(results, modelIngestor)
+
+			// fetch and generate execution plan
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				GenerateAndInjestExecutionPlan(interval, entity, db, queryId)
+			}()
+
 		case "waitAnalysis":
 			var model models.WaitTimeAnalysisReceiver
 			if err := rows.StructScan(&model); err != nil {
@@ -95,14 +106,6 @@ func BindQueryResults(rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto) (
 			modelIngestor.WaitEventCount = model.WaitEventCount
 			modelIngestor.CollectionTimestamp = model.CollectionTimestamp
 			results = append(results, modelIngestor)
-		case "executionPlan":
-			var model models.ExecutionPlanResult
-			if err := rows.StructScan(&model); err != nil {
-				fmt.Println("Could not scan row: ", err)
-				continue
-			}
-			AnonymizeQueryText(model.SQLText)
-			results = append(results, model)
 		case "blockingSessions":
 			var model models.BlockingSessionQueryDetails
 			if err := rows.StructScan(&model); err != nil {
@@ -120,8 +123,50 @@ func BindQueryResults(rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto) (
 
 }
 
+func GenerateAndInjestExecutionPlan(interval int, entity *integration.Entity, db *sqlx.DB, queryId string) {
+	hexQueryId := fmt.Sprintf("%s", queryId)
+	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, hexQueryId, interval)
+
+	var model models.ExecutionPlanResult
+
+	rows, err := db.Queryx(executionPlanQuery)
+	if err != nil {
+		log.Error("Failed to execute query: %s", err)
+		return
+	}
+	defer rows.Close()
+
+	results := make([]interface{}, 0)
+
+	for rows.Next() {
+		if err := rows.StructScan(&model); err != nil {
+			log.Error("Could not scan row: %s", err)
+			return
+		}
+		AnonymizeQueryText(model.SQLText)
+		results = append(results, model)
+	}
+
+	queryDetailsDto := models.QueryDetailsDto{
+		Name:  "MSSQLQueryExecutionPlans",
+		Query: "",
+		Type:  "executionPlan",
+	}
+
+	// Ingest the execution plan
+	if err := IngestQueryMetrics(entity, results, queryDetailsDto); err != nil {
+		log.Error("Failed to ingest execution plan: %s", err)
+	}
+}
+
 // IngestQueryMetrics processes and ingests query metrics into the New Relic entity
 func IngestQueryMetrics(entity *integration.Entity, results []interface{}, queryDetailsDto models.QueryDetailsDto) error {
+
+	if queryDetailsDto.Name == "MSSQLQueryExecutionPlans" {
+		fmt.Println("QueryDetails::::::::::::::::", queryDetailsDto)
+		fmt.Println("ExecutionPlan Result", results)
+	}
+
 	for i, result := range results {
 		// Convert the result into a map[string]interface{} for dynamic key-value access
 		var resultMap map[string]interface{}
@@ -149,7 +194,6 @@ func IngestQueryMetrics(entity *integration.Entity, results []interface{}, query
 				metricSet.SetMetric(key, strValue, metric.ATTRIBUTE)
 			}
 		}
-
 		fmt.Println("Ingested Row:", i, string(data))
 	}
 	return nil
