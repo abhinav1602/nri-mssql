@@ -15,7 +15,6 @@ import (
 	"github.com/newrelic/nri-mssql/src/instance"
 	"github.com/newrelic/nri-mssql/src/inventory"
 	"github.com/newrelic/nri-mssql/src/metrics"
-	"github.com/newrelic/nri-mssql/src/queryanalysis"
 )
 
 const (
@@ -86,20 +85,16 @@ func main() {
 		metrics.PopulateInstanceMetrics(instanceEntity, con, args)
 	}
 
-	if args.EnableQueryPerformance {
-		queryAnalysis.QueryPerformanceMain(i, args)
-	}
-
 	// Close connection when done
 	defer con.Close()
 
 	if err = i.Publish(); err != nil {
 		log.Error(err.Error())
-		return
 	}
+	i.Clear()
 
-	if args.EnableQueryMonitoring {
-		queryanalysis.PopulateQueryPerformanceMetrics(i, args)
+	if args.EnableQueryPerformance {
+		queryAnalysis.QueryPerformanceMain(i, args)
 	}
 
 }
