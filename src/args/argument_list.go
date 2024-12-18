@@ -28,6 +28,10 @@ type ArgumentList struct {
 	ShowVersion                  bool   `default:"false" help:"Print build information and exit"`
 	ExtraConnectionURLArgs       string `default:"" help:"Appends additional parameters to connection url. Ex. 'applicationintent=readonly&foo=bar'"`
 	EnableDiskMetricsInBytes     bool   `default:"true" help:"Enable collection of instance.diskInBytes."`
+	EnableQueryPerformance       bool   `default:"true"`
+	SlowQueryThreshold           int    `default:"500"`
+	SlowQueryCount               int    `default:"10"`
+	FetchInterval                int    `default:"15"`
 }
 
 // Validate validates SQL specific arguments

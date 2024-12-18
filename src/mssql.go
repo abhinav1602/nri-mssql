@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis"
 	"os"
 	"runtime"
 	"strings"
@@ -30,6 +31,7 @@ func main() {
 	var args args.ArgumentList
 	// Create Integration
 	i, err := integration.New(integrationName, integrationVersion, integration.Args(&args))
+
 	if err != nil {
 		log.Error(err.Error())
 		os.Exit(1)
@@ -89,6 +91,11 @@ func main() {
 
 	if err = i.Publish(); err != nil {
 		log.Error(err.Error())
-		os.Exit(1)
 	}
+	i.Clear()
+
+	if args.EnableQueryPerformance {
+		queryAnalysis.QueryPerformanceMain(i, args)
+	}
+
 }
