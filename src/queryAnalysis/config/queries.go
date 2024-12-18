@@ -12,7 +12,7 @@ var Queries = []models.QueryDetailsDto{
         sys.dm_exec_query_stats qs
     WHERE 
         qs.execution_count > 0
-        AND qs.last_execution_time >= DATEADD(SECOND, -15, GETUTCDATE())
+        AND qs.last_execution_time >= DATEADD(SECOND, -%d, GETUTCDATE())
         AND qs.sql_handle IS NOT NULL
 ),
     QueryStats AS (
@@ -80,7 +80,7 @@ var Queries = []models.QueryDetailsDto{
 					AND LTRIM(RTRIM(qt.text)) <> ''
 			)
 			SELECT
-				TOP 10 qs.query_id,
+				TOP %d qs.query_id,
 				MIN(qs.query_text) AS query_text,
 				DB_NAME(MIN(qs.database_id)) AS database_name,
 				COALESCE(
@@ -106,7 +106,7 @@ var Queries = []models.QueryDetailsDto{
 			GROUP BY
 				qs.query_id
 			HAVING
-				AVG(qs.avg_elapsed_time_ms) > 0
+				AVG(qs.avg_elapsed_time_ms) > %d
 			ORDER BY
 				avg_elapsed_time_ms DESC;`,
 		Type: "slowQueries",
