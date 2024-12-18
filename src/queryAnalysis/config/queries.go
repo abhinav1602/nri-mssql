@@ -5,7 +5,17 @@ import "github.com/newrelic/nri-mssql/src/queryAnalysis/models"
 var Queries = []models.QueryDetailsDto{
 	{
 		Name: "MSSQLTopSlowQueries",
-		Query: `WITH QueryStats AS (
+		Query: `WITH RecentQueryIds AS (
+    SELECT  
+        qs.query_hash as query_id
+    FROM 
+        sys.dm_exec_query_stats qs
+    WHERE 
+        qs.execution_count > 0
+        AND qs.last_execution_time >= DATEADD(SECOND, -15, GETUTCDATE())
+        AND qs.sql_handle IS NOT NULL
+),
+    QueryStats AS (
 				SELECT
 					qs.plan_handle,
 					qs.sql_handle,
@@ -58,18 +68,19 @@ var Queries = []models.QueryDetailsDto{
 					JOIN sys.dm_exec_cached_plans cp ON qs.plan_handle = cp.plan_handle
 					CROSS APPLY sys.dm_exec_plan_attributes(cp.plan_handle) AS pa
 				WHERE
-					qs.execution_count > 0
+        qs.query_hash IN (SELECT distinct(query_id) FROM RecentQueryIds)
+					AND qs.execution_count > 0
 					AND pa.attribute = 'dbid'
 					AND DB_NAME(CONVERT(INT, pa.value)) NOT IN ('master', 'model', 'msdb', 'tempdb')
-					AND qs.last_execution_time >= DATEADD(SECOND, -%d, GETUTCDATE())
-					AND qt.text NOT LIKE '%%sys.%%'
+					
+					AND qt.text NOT LIKE '%%sys%%'
 					AND qt.text NOT LIKE '%%INFORMATION_SCHEMA%%'
 					AND qt.text NOT LIKE '%%schema_name()%%'
 					AND qt.text IS NOT NULL
 					AND LTRIM(RTRIM(qt.text)) <> ''
 			)
 			SELECT
-				TOP %d qs.query_id,
+				TOP 10 qs.query_id,
 				MIN(qs.query_text) AS query_text,
 				DB_NAME(MIN(qs.database_id)) AS database_name,
 				COALESCE(
@@ -95,7 +106,7 @@ var Queries = []models.QueryDetailsDto{
 			GROUP BY
 				qs.query_id
 			HAVING
-				AVG(qs.avg_elapsed_time_ms) > %d
+				AVG(qs.avg_elapsed_time_ms) > 0
 			ORDER BY
 				avg_elapsed_time_ms DESC;`,
 		Type: "slowQueries",
