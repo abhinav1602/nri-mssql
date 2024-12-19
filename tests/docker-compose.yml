@@ -1,17 +1,32 @@
 services:
-
-  mssql:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: mssql
-    environment:
-      ACCEPT_EULA: Y
-      SA_PASSWORD: secret123!
-      MSSQL_PID: Developer
-    restart: always
+#  mssql:
+#    image: mcr.microsoft.com/azure-sql-edge
+#    ports:
+#      - "1433:1433"
+#    container_name: mssql
+#    environment:
+#      ACCEPT_EULA: Y
+#      SA_PASSWORD: secret123!
+#      MSSQL_PID: Developer
+#    restart: always
   nri-mssql:
     image: golang:1.23.4-bookworm
     container_name: nri_mssql
     working_dir: /code
     volumes:
       - ../:/code
-    entrypoint: go run /code/src/mssql.go
+    entrypoint: go run /code/src/mssql.go -instance="" -hostname=mssql-performance -username="sa" -password="secret123!" -pretty
+  mssql-performance: # New service name using your custom image
+    build:
+      context: . # Assuming Dockerfile is in the same directory as docker-compose.yml
+      dockerfile: mssql-perf/Dockerfile  # Specify your Dockerfile
+    ports:
+      - "1433:1433"
+    container_name: mssql-performance # Updated container name
+    environment:
+      ACCEPT_EULA: Y
+      MSSQL_SA_PASSWORD: secret123! # Use MSSQL_SA_PASSWORD for consistency
+      MSSQL_PID: Developer
+      MSSQL_AGENT_ENABLED: 1 # Example: enabling SQL Agent
+      MSSQL_QUERY_STORE_ENABLED: 1 # Enable Query Store
+    restart: always
