@@ -6,6 +6,9 @@ on:
       - main
       - master
       - renovate/**
+      - queryAnalysis/**
+      - dev/**
+
   pull_request:
 
 jobs:
