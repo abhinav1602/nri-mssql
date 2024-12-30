@@ -3,7 +3,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis"
+	"github.com/newrelic/nri-mssql/src/queryanalysis"
 	"os"
 	"runtime"
 	"strings"
@@ -96,7 +96,7 @@ func main() {
 	i.Clear()
 
 	if args.EnableQueryPerformance {
-		queryAnalysis.QueryPerformanceMain(i, args)
+		queryanalysis.QueryPerformanceMain(i, args)
 	}
 
 }

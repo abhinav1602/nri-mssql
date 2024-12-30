@@ -20,7 +20,8 @@ func TestRetry_SuccessOnFirstAttempt(t *testing.T) {
 func TestRetry_FailureAfterMaxRetries(t *testing.T) {
 	retryMechanism := &RetryMechanismImpl{}
 
-	expectedError := errors.New("operation failed")
+	errStr := "operation failed"
+	expectedError := errors.New(errStr)
 	attempts := 0
 
 	err := retryMechanism.Retry(func() error {
@@ -32,7 +33,7 @@ func TestRetry_FailureAfterMaxRetries(t *testing.T) {
 		t.Fatalf("expected an error, got nil")
 	}
 
-	if err != expectedError {
+	if !errors.Is(err, expectedError) {
 		t.Fatalf("expected error %v, got %v", expectedError, err)
 	}
 
@@ -51,7 +52,8 @@ func TestRetry_SuccessOnSubsequentAttempt(t *testing.T) {
 		if attempts == 2 {
 			return nil // Succeed on the second attempt
 		}
-		return errors.New("try again")
+		errStr := "try again"
+		return errors.New(errStr)
 	})
 
 	if err != nil {

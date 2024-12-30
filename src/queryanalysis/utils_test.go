@@ -1,4 +1,4 @@
-package queryAnalysis
+package queryanalysis
 
 import (
 	"fmt"
@@ -6,9 +6,9 @@ import (
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/nri-mssql/src/args"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/config"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/config"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 	"testing"
@@ -167,33 +167,34 @@ func TestExecuteQuery_BlockingSessionsSuccess(t *testing.T) {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
 
-	blockingSession, ok := results[0].(models.BlockingSessionQueryDetails)
-	if !ok {
-		t.Fatalf("expected type models.BlockingSessionQueryDetails, got %T", results[0])
-	}
-
-	expectedBlockingSPID := int64(101)
-	if blockingSession.BlockingSPID == nil || *blockingSession.BlockingSPID != expectedBlockingSPID {
-		t.Errorf("expected BlockingSPID %v, got %v", expectedBlockingSPID, blockingSession.BlockingSPID)
-	}
-
-	expectedBlockedSPID := int64(202)
-	if blockingSession.BlockedSPID == nil || *blockingSession.BlockedSPID != expectedBlockedSPID {
-		t.Errorf("expected BlockedSPID %v, got %v", expectedBlockedSPID, blockingSession.BlockedSPID)
-	}
-
-	expectedDatabaseName := "example_db"
-	if blockingSession.DatabaseName == nil || *blockingSession.DatabaseName != expectedDatabaseName {
-		t.Errorf("expected DatabaseName %s, got %v", expectedDatabaseName, blockingSession.DatabaseName)
-	}
-
-	expectedBlockingQueryText := "SELECT * FROM source"
-	if blockingSession.BlockingQueryText == nil || *blockingSession.BlockingQueryText != expectedBlockingQueryText {
-		t.Errorf("expected BlockingQueryText %s, got %v", expectedBlockingQueryText, blockingSession.BlockingQueryText)
-	}
+	validateBlockingSession(t, results[0])
 
 	if err = mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("unfulfilled expectations: %v", err)
+	}
+}
+
+func validateBlockingSession(t *testing.T, result interface{}) {
+	blockingSession, ok := result.(models.BlockingSessionQueryDetails)
+	if !ok {
+		t.Fatalf("expected type models.BlockingSessionQueryDetails, got %T", result)
+	}
+
+	checkInt64Field(t, "BlockingSPID", blockingSession.BlockingSPID, 101)
+	checkInt64Field(t, "BlockedSPID", blockingSession.BlockedSPID, 202)
+	checkStringField(t, "DatabaseName", blockingSession.DatabaseName, "example_db")
+	checkStringField(t, "BlockingQueryText", blockingSession.BlockingQueryText, "SELECT * FROM source")
+}
+
+func checkInt64Field(t *testing.T, name string, field *int64, expected int64) {
+	if field == nil || *field != expected {
+		t.Errorf("expected %s %v, got %v", name, expected, field)
+	}
+}
+
+func checkStringField(t *testing.T, name string, field *string, expected string) {
+	if field == nil || *field != expected {
+		t.Errorf("expected %s %v, got %v", name, expected, field)
 	}
 }
 
@@ -407,13 +408,13 @@ func TestAnonymizeQueryText_NoSensitiveData(t *testing.T) {
 }
 
 func TestBindQueryResults_BlockingSessions(t *testing.T) {
-	mockDB, mock, err := sqlmock.New() // Create a sqlmock database connection
+	mockDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	defer mockDB.Close()
 
-	sqlxDB := sqlx.NewDb(mockDB, "sqlmock") // Wrap with sqlx.DB
+	sqlxDB := sqlx.NewDb(mockDB, "sqlmock")
 	rows := sqlmock.NewRows([]string{
 		"blocking_spid", "blocking_status", "blocked_spid", "blocked_status",
 		"wait_type", "wait_time_in_seconds", "command_type", "database_name",
@@ -449,25 +450,7 @@ func TestBindQueryResults_BlockingSessions(t *testing.T) {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
 
-	blockingSession, ok := results[0].(models.BlockingSessionQueryDetails)
-	if !ok {
-		t.Fatalf("expected type models.BlockingSessionQueryDetails, got %T", results[0])
-	}
-
-	expectedBlockingSPID := int64(101)
-	if blockingSession.BlockingSPID == nil || *blockingSession.BlockingSPID != expectedBlockingSPID {
-		t.Errorf("expected BlockingSPID %v, got %v", expectedBlockingSPID, blockingSession.BlockingSPID)
-	}
-
-	expectedBlockedSPID := int64(202)
-	if blockingSession.BlockedSPID == nil || *blockingSession.BlockedSPID != expectedBlockedSPID {
-		t.Errorf("expected BlockedSPID %v, got %v", expectedBlockedSPID, blockingSession.BlockedSPID)
-	}
-
-	expectedDatabaseName := "example_db"
-	if blockingSession.DatabaseName == nil || *blockingSession.DatabaseName != expectedDatabaseName {
-		t.Errorf("expected DatabaseName %s, got %v", expectedDatabaseName, blockingSession.DatabaseName)
-	}
+	validateBlockingSession(t, results[0])
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("unfulfilled expectations: %v", err)
@@ -475,14 +458,13 @@ func TestBindQueryResults_BlockingSessions(t *testing.T) {
 }
 
 func TestBindQueryResults_WaitAnalysis(t *testing.T) {
-	// Create a mock sqlmock database connection
 	mockDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("unexpected error when opening mock database: %v", err)
 	}
 	defer mockDB.Close()
 
-	sqlxDB := sqlx.NewDb(mockDB, "sqlmock") // Wrap the *sql.DB with sqlx
+	sqlxDB := sqlx.NewDb(mockDB, "sqlmock")
 	now := time.Now()
 	rows := sqlmock.NewRows([]string{
 		"query_id", "database_name", "query_text", "wait_category",
@@ -527,22 +509,29 @@ func TestBindQueryResults_WaitAnalysis(t *testing.T) {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
 
-	waitAnalysis, ok := results[0].(models.WaitTimeAnalysis)
+	validateWaitAnalysis(t, results[0], now)
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled expectations: %v", err)
+	}
+}
+
+func validateWaitAnalysis(t *testing.T, result interface{}, now time.Time) {
+	waitAnalysis, ok := result.(models.WaitTimeAnalysis)
 	if !ok {
-		t.Fatalf("expected type models.WaitTimeAnalysis, got %T", results[0])
+		t.Fatalf("expected type models.WaitTimeAnalysis, got %T", result)
 	}
 
 	expectedQueryID := models.HexString("0xabcd")
-	if waitAnalysis.QueryID == nil || *waitAnalysis.QueryID != expectedQueryID {
-		t.Errorf("expected QueryID %v, got %v", expectedQueryID, waitAnalysis.QueryID)
-	}
+	checkHexStringField(t, "QueryID", waitAnalysis.QueryID, expectedQueryID)
 
 	expectedDatabaseName := "example_db"
-	if waitAnalysis.DatabaseName == nil || *waitAnalysis.DatabaseName != expectedDatabaseName {
-		t.Errorf("expected DatabaseName %s, got %v", expectedDatabaseName, waitAnalysis.DatabaseName)
-	}
+	checkStringField(t, "DatabaseName", waitAnalysis.DatabaseName, expectedDatabaseName)
 
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("there were unfulfilled expectations: %v", err)
+}
+
+func checkHexStringField(t *testing.T, name string, field *models.HexString, expected models.HexString) {
+	if field == nil || *field != expected {
+		t.Errorf("expected %s %v, got %v", name, expected, field)
 	}
 }

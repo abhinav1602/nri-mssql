@@ -1,13 +1,13 @@
-package queryAnalysis
+package queryanalysis
 
 import (
 	"fmt"
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/args"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/retryMechanism"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/validation"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/retryMechanism"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/validation"
 )
 
 // queryPerformanceMain runs all types of analyses
