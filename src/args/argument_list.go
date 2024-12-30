@@ -29,8 +29,8 @@ type ArgumentList struct {
 	ExtraConnectionURLArgs       string `default:"" help:"Appends additional parameters to connection url. Ex. 'applicationintent=readonly&foo=bar'"`
 	EnableDiskMetricsInBytes     bool   `default:"true" help:"Enable collection of instance.diskInBytes."`
 	EnableQueryPerformance       bool   `default:"false"`
-	SlowQueryThreshold           int    `default:"500"`
-	SlowQueryCount               int    `default:"10"`
+	QueryResponseTimeThreshold   int    `default:"0"`
+	QueryCountThreshold          int    `default:"10"`
 	FetchInterval                int    `default:"15"`
 }
 
