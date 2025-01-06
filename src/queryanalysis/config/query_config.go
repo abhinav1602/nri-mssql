@@ -91,35 +91,36 @@ var Queries = []models.QueryDetailsDto{
 						)
 				)
 				SELECT
-					TOP (@TopN) qs.query_id,
+					TOP (@TopN)
+					qs.query_id,
 					MIN(qs.query_text) AS query_text,
 					DB_NAME(MIN(qs.database_id)) AS database_name,
 					COALESCE(
-						OBJECT_SCHEMA_NAME(MIN(qs.objectid), MIN(qs.database_id)),
-						'N/A'
-					) AS schema_name,
+										OBJECT_SCHEMA_NAME(MIN(qs.objectid), MIN(qs.database_id)),
+										'N/A'
+									) AS schema_name,
 					FORMAT(
-						MAX(qs.last_execution_time) AT TIME ZONE 'UTC',
-						'yyyy-MM-ddTHH:mm:ssZ'
-					) AS last_execution_timestamp,
+										MAX(qs.last_execution_time) AT TIME ZONE 'UTC',
+										'yyyy-MM-ddTHH:mm:ssZ'
+									) AS last_execution_timestamp,
 					SUM(qs.execution_count) AS execution_count,
 					AVG(qs.avg_cpu_time_ms) AS avg_cpu_time_ms,
 					AVG(qs.avg_elapsed_time_ms) AS avg_elapsed_time_ms,
 					AVG(qs.avg_disk_reads) AS avg_disk_reads,
 					AVG(qs.avg_disk_writes) AS avg_disk_writes,
-					 MAX(qs.statement_type) AS statement_type,
+					MAX(qs.statement_type) AS statement_type,
 					FORMAT(
-						SYSDATETIMEOFFSET() AT TIME ZONE 'UTC',
-						'yyyy-MM-ddTHH:mm:ssZ'
-					) AS collection_timestamp
+										SYSDATETIMEOFFSET() AT TIME ZONE 'UTC',
+										'yyyy-MM-ddTHH:mm:ssZ'
+									) AS collection_timestamp
 				FROM
 					QueryStats qs
 				GROUP BY
-					qs.query_id
+									qs.query_id
 				HAVING
-					AVG(qs.avg_elapsed_time_ms) > @ElapsedTimeThreshold
+									AVG(qs.avg_elapsed_time_ms) > @ElapsedTimeThreshold
 				ORDER BY
-					avg_elapsed_time_ms DESC;`,
+									avg_elapsed_time_ms DESC;`,
 		Type: "slowQueries",
 	},
 	{
