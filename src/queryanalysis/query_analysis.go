@@ -1,19 +1,17 @@
 package queryAnalysis
 
 import (
-	"fmt"
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/retryMechanism"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/retrymechanism"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/utils"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/validation"
 )
 
 // queryPerformanceMain runs all types of analyses
 func QueryPerformanceMain(integration *integration.Integration, arguments args.ArgumentList) {
-
-	fmt.Println("Starting query analysis...")
 
 	// Create a new connection
 	sqlConnection, err := connection.NewConnection(&arguments)
@@ -21,18 +19,19 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 		log.Error("Error creating connection to SQL Server: %s", err.Error())
 		return
 	}
-	validation.ValidatePreConditions(sqlConnection)
 
 	// Validate preconditions
-	err = validation.ValidatePreConditions(sqlConnection)
-	if err != nil {
-		log.Error("Error validating preconditions: %s", err.Error())
-		return // Abort further operations if validations fail
+	isPreconditionPassed := validation.ValidatePreConditions(sqlConnection)
+	if !isPreconditionPassed {
+		log.Error("Error validating preconditions")
+		return
 	}
 
-	var retryMechanism retryMechanism.RetryMechanism = &retryMechanism.RetryMechanismImpl{}
+	utils.ValidateAndSetDefaults(&arguments)
 
-	queryDetails, err := LoadQueries(arguments)
+	var retryMechanism retrymechanism.RetryMechanism = &retrymechanism.RetryMechanismImpl{}
+
+	queryDetails, err := utils.LoadQueries(arguments)
 
 	if err != nil {
 		log.Error("Error loading query configuration: %v", err)
@@ -41,12 +40,12 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 
 	for _, queryDetailsDto := range queryDetails {
 		err := retryMechanism.Retry(func() error {
-			queryResults, err := ExecuteQuery(arguments, queryDetailsDto, integration, sqlConnection)
+			queryResults, err := utils.ExecuteQuery(arguments, queryDetailsDto, integration, sqlConnection)
 			if err != nil {
 				log.Error("Failed to execute query: %s", err)
 				return err
 			}
-			err = IngestQueryMetricsInBatches(queryResults, queryDetailsDto, integration, sqlConnection)
+			err = utils.IngestQueryMetricsInBatches(queryResults, queryDetailsDto, integration, sqlConnection)
 			if err != nil {
 				log.Error("Failed to ingest metrics: %s", err)
 				return err

@@ -1,31 +1,24 @@
 package utils
 
 import (
+	_ "embed"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"regexp"
-	"strconv"
-
 	"github.com/jmoiron/sqlx"
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
-
 	"github.com/newrelic/nri-mssql/src/args"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/config"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/instance"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
-)
-
-var (
-	ErrUnknownQueryType       = errors.New("unknown query type")
-	ErrCreatingInstanceEntity = errors.New("error creating instance entity")
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/config"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/instance"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
+	"regexp"
+	"strconv"
 )
 
 func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
-	queries := config.Queries
+	var queries []models.QueryDetailsDto = config.Queries
 
 	for i := range queries {
 		switch queries[i].Type {
@@ -33,9 +26,9 @@ func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) 
 			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval, arguments.QueryCountThreshold,
 				arguments.QueryResponseTimeThreshold, config.TextTruncateLimit)
 		case "waitAnalysis":
-			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.QueryCountThreshold, config.TextTruncateLimit)
+			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval, arguments.QueryCountThreshold, config.TextTruncateLimit)
 		case "blockingSessions":
-			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.QueryCountThreshold, config.TextTruncateLimit)
+			queries[i].Query = fmt.Sprintf(queries[i].Query, config.TextTruncateLimit)
 		default:
 			fmt.Println("Unknown query type:", queries[i].Type)
 		}
@@ -45,14 +38,12 @@ func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) 
 }
 
 func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
-	log.Debug("Executing query: %s", queryDetailsDto.Query)
 
 	rows, err := sqlConnection.Connection.Queryx(queryDetailsDto.Query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
-	defer rows.Close()
-	log.Debug("Query executed: %s", queryDetailsDto.Query)
+
 	return BindQueryResults(arguments, rows, queryDetailsDto, integration, sqlConnection)
 }
 
@@ -61,8 +52,10 @@ func BindQueryResults(arguments args.ArgumentList,
 	rows *sqlx.Rows,
 	queryDetailsDto models.QueryDetailsDto,
 	integration *integration.Integration,
-	sqlConnection *connection.SQLConnection,
-) ([]interface{}, error) {
+	sqlConnection *connection.SQLConnection) ([]interface{}, error) {
+
+	defer rows.Close()
+
 	results := make([]interface{}, 0)
 
 	for rows.Next() {
@@ -78,9 +71,7 @@ func BindQueryResults(arguments args.ArgumentList,
 			results = append(results, model)
 
 			// fetch and generate execution plan
-			if model.QueryID != nil {
-				GenerateAndIngestExecutionPlan(arguments, integration, sqlConnection, *model.QueryID)
-			}
+			GenerateAndInjestExecutionPlan(arguments, integration, sqlConnection, *model.QueryID)
 
 		case "waitAnalysis":
 			var model models.WaitTimeAnalysis
@@ -101,26 +92,27 @@ func BindQueryResults(arguments args.ArgumentList,
 			AnonymizeQueryText(model.BlockingQueryText)
 			results = append(results, model)
 		default:
-			return nil, fmt.Errorf("%w: %s", ErrUnknownQueryType, queryDetailsDto.Type)
+			return nil, fmt.Errorf("unknown query type: %s", queryDetailsDto.Type)
 		}
 	}
 	return results, nil
+
 }
 
-func GenerateAndIngestExecutionPlan(arguments args.ArgumentList,
+func GenerateAndInjestExecutionPlan(arguments args.ArgumentList,
 	integration *integration.Integration,
 	sqlConnection *connection.SQLConnection,
-	queryID models.HexString,
-) {
-	hexQueryID := string(queryID)
+	queryId models.HexString) {
+
+	hexQueryId := fmt.Sprintf("%s", queryId)
 	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, min(config.IndividualQueryCountMax, arguments.QueryCountThreshold),
-		arguments.QueryResponseTimeThreshold, hexQueryID, arguments.FetchInterval, config.TextTruncateLimit)
+		arguments.QueryResponseTimeThreshold, hexQueryId, arguments.FetchInterval, config.TextTruncateLimit)
 
 	var model models.ExecutionPlanResult
 
 	rows, err := sqlConnection.Connection.Queryx(executionPlanQuery)
 	if err != nil {
-		log.Error("Failed to execute execution plan query: %s", err)
+		log.Error("Failed to execute query: %s", err)
 		return
 	}
 	defer rows.Close()
@@ -129,7 +121,7 @@ func GenerateAndIngestExecutionPlan(arguments args.ArgumentList,
 
 	for rows.Next() {
 		if err := rows.StructScan(&model); err != nil {
-			log.Error("Could not scan execution plan row: %s", err)
+			log.Error("Could not scan row: %s", err)
 			return
 		}
 		AnonymizeQueryText(model.SQLText)
@@ -151,9 +143,9 @@ func GenerateAndIngestExecutionPlan(arguments args.ArgumentList,
 func IngestQueryMetricsInBatches(results []interface{},
 	queryDetailsDto models.QueryDetailsDto,
 	integration *integration.Integration,
-	sqlConnection *connection.SQLConnection,
-) error {
-	const batchSize = 100 // New Relic's Integration SDK imposes a limit of 1000 metrics per ingestion.To handle metric sets exceeding this limit, we process and ingest metrics in smaller chunks to ensure all data is successfully reported without exceeding the limit.
+	sqlConnection *connection.SQLConnection) error {
+
+	const batchSize = 100
 
 	for start := 0; start < len(results); start += batchSize {
 		end := start + batchSize
@@ -171,46 +163,21 @@ func IngestQueryMetricsInBatches(results []interface{},
 	return nil
 }
 
-func convertResultToMap(result interface{}) (map[string]interface{}, error) {
-	data, err := json.Marshal(result)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling result: %w", err)
-	}
-
-	var resultMap map[string]interface{}
-	if err := json.Unmarshal(data, &resultMap); err != nil {
-		return nil, fmt.Errorf("error unmarshaling to map: %w", err)
-	}
-	return resultMap, nil
-}
-
-// handleGaugeMetric processes the gauge metric and logs any errors encountered
-func handleGaugeMetric(key, strValue string, metricSet *metric.Set) {
-	floatValue, err := strconv.ParseFloat(strValue, 64)
-	if err != nil {
-		log.Error("failed to parse float value for key %s: %v", key, err)
-		return
-	}
-
-	err = metricSet.SetMetric(key, floatValue, metric.GAUGE)
-	if err != nil {
-		log.Error("failed to set metric for key %s: %v", key, err)
-	}
-}
-
 // IngestQueryMetrics processes and ingests query metrics into the New Relic entity
 func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) error {
+
 	instanceEntity, err := instance.CreateInstanceEntity(integration, sqlConnection)
-	if err != nil {
-		log.Error("%w: %v", ErrCreatingInstanceEntity, err)
-	}
 
 	for _, result := range results {
 		// Convert the result into a map[string]interface{} for dynamic key-value access
-		resultMap, err := convertResultToMap(result)
+		var resultMap map[string]interface{}
+		data, err := json.Marshal(result)
 		if err != nil {
-			log.Error("failed to convert result: %v", err)
-			continue
+			return fmt.Errorf("error marshalling to JSON: %w", err)
+		}
+		err = json.Unmarshal(data, &resultMap)
+		if err != nil {
+			return fmt.Errorf("error unmarshalling to map: %w", err)
 		}
 
 		// Create a new metric set with the query name
@@ -221,12 +188,11 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 			strValue := fmt.Sprintf("%v", value) // Convert the value to a string representation
 			metricType := DetectMetricType(strValue)
 			if metricType == metric.GAUGE {
-				handleGaugeMetric(key, strValue, metricSet)
-			} else {
-				if err := metricSet.SetMetric(key, strValue, metric.ATTRIBUTE); err != nil {
-					// Handle the error. This could be logging, returning the error, etc.
-					log.Error("failed to set metric: %v", err)
+				if floatValue, err := strconv.ParseFloat(strValue, 64); err == nil {
+					metricSet.SetMetric(key, floatValue, metric.GAUGE)
 				}
+			} else {
+				metricSet.SetMetric(key, strValue, metric.ATTRIBUTE)
 			}
 		}
 	}
@@ -234,6 +200,8 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 	if err != nil {
 		return err
 	}
+	integration.Clear()
+
 	return nil
 }
 
@@ -241,32 +209,26 @@ func DetectMetricType(value string) metric.SourceType {
 	if _, err := strconv.ParseFloat(value, 64); err != nil {
 		return metric.ATTRIBUTE
 	}
+
 	return metric.GAUGE
 }
 
-var re = regexp.MustCompile(`'[^']*'|\d+|".*?"`)
-
 func AnonymizeQueryText(query *string) {
-	if query == nil {
-		return
-	}
+	re := regexp.MustCompile(`'[^']*'|\d+|".*?"`)
 	anonymizedQuery := re.ReplaceAllString(*query, "?")
 	*query = anonymizedQuery
 }
 
 // ValidateAndSetDefaults checks if fields are invalid and sets defaults
 func ValidateAndSetDefaults(args *args.ArgumentList) {
-	// Since EnableQueryMonitoring is a boolean, no need to reset as it can't be invalid in this context
+	// Since EnableQueryPerformance is a boolean, no need to reset as it can't be invalid in this context
 	if args.QueryResponseTimeThreshold < 0 {
 		args.QueryResponseTimeThreshold = config.QueryResponseTimeThresholdDefault
-		log.Warn("Query response time threshold is negative, setting to default value: %d", config.QueryResponseTimeThresholdDefault)
 	}
 
 	if args.QueryCountThreshold < 0 {
 		args.QueryCountThreshold = config.SlowQueryCountThresholdDefault
-		log.Warn("Query count threshold is negative, setting to default value: %d", config.SlowQueryCountThresholdDefault)
-	} else if args.QueryCountThreshold >= config.GroupedQueryCountMax {
+	} else if args.QueryCountThreshold >= 30 {
 		args.QueryCountThreshold = config.GroupedQueryCountMax
-		log.Warn("Query count threshold is greater than max supported value, setting to max supported value: %d", config.GroupedQueryCountMax)
 	}
 }

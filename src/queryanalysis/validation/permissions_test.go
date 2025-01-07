@@ -2,11 +2,13 @@
 package validation
 
 import (
-	"regexp"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+var errQueryError = errors.New("query error")
 
 func TestCheckPermissionsAndLogin(t *testing.T) {
 	sqlConnection, mock := setupMockDB(t)
@@ -23,7 +25,10 @@ func TestCheckPermissionsAndLogin(t *testing.T) {
 func TestCheckPermissionsAndLogin_PermissionsError(t *testing.T) {
 	sqlConnection, mock := setupMockDB(t)
 	defer sqlConnection.Connection.Close()
-	mock.ExpectQuery(regexp.QuoteMeta(checkPermissionsQuery)).WillReturnError(errQueryError)
+
+	mock.ExpectQuery("SELECT CASE WHEN IS_SRVROLEMEMBER\\('sysadmin'\\) = 1 OR HAS_PERMS_BY_NAME\\(null, null, 'VIEW SERVER STATE'\\) = 1 THEN 1 ELSE 0 END AS has_permission").
+		WillReturnError(errQueryError)
+
 	result := checkPermissionsAndLogin(sqlConnection)
 	assert.False(t, result)
 	assert.NoError(t, mock.ExpectationsWereMet())
