@@ -109,7 +109,8 @@ func GenerateAndInjestExecutionPlan(interval int,
 	queryId models.HexString) {
 
 	hexQueryId := fmt.Sprintf("%s", queryId)
-	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, hexQueryId, interval)
+	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, min(config.IndividualQueryCountMax, arguments.QueryCountThreshold),
+		arguments.QueryResponseTimeThreshold, hexQueryId, arguments.FetchInterval, config.TextTruncateLimit)
 
 	var model models.ExecutionPlanResult
 
@@ -218,10 +219,21 @@ func DetectMetricType(value string) metric.SourceType {
 }
 
 func AnonymizeQueryText(query *string) {
-
 	re := regexp.MustCompile(`'[^']*'|\d+|".*?"`)
-
 	anonymizedQuery := re.ReplaceAllString(*query, "?")
-
 	*query = anonymizedQuery
+}
+
+// ValidateAndSetDefaults checks if fields are invalid and sets defaults
+func ValidateAndSetDefaults(args *args.ArgumentList) {
+	// Since EnableQueryPerformance is a boolean, no need to reset as it can't be invalid in this context
+	if args.QueryResponseTimeThreshold < 0 {
+		args.QueryResponseTimeThreshold = config.QueryResponseTimeThresholdDefault
+	}
+
+	if args.QueryCountThreshold < 0 {
+		args.QueryCountThreshold = config.SlowQueryCountThresholdDefault
+	} else if args.QueryCountThreshold >= 30 {
+		args.QueryCountThreshold = config.GroupedQueryCountMax
+	}
 }
