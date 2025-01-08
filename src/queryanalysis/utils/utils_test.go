@@ -13,6 +13,7 @@ import (
 
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/nri-mssql/src/args"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
