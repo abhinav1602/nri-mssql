@@ -13,17 +13,17 @@ import (
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 
 	"github.com/newrelic/nri-mssql/src/args"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/config"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/instance"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/config"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/instance"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
 )
 
 var ErrUnknownQueryType = errors.New("unknown query type")
 var ErrCreatingInstanceEntity = errors.New("error creating instance entity")
 
 func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
-	queries := config.Queries
+	var queries []models.QueryDetailsDto = config.Queries
 
 	for i := range queries {
 		switch queries[i].Type {
@@ -107,8 +107,9 @@ func BindQueryResults(arguments args.ArgumentList,
 func GenerateAndInjestExecutionPlan(arguments args.ArgumentList,
 	integration *integration.Integration,
 	sqlConnection *connection.SQLConnection,
-	queryID models.HexString) {
-	hexQueryID := string(queryID)
+	queryId models.HexString) {
+
+	hexQueryID := string(queryId)
 	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, min(config.IndividualQueryCountMax, arguments.QueryCountThreshold),
 		arguments.QueryResponseTimeThreshold, hexQueryID, arguments.FetchInterval, config.TextTruncateLimit)
 
@@ -167,19 +168,6 @@ func IngestQueryMetricsInBatches(results []interface{},
 	return nil
 }
 
-func convertResultToMap(result interface{}) (map[string]interface{}, error) {
-	data, err := json.Marshal(result)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling result: %w", err)
-	}
-
-	var resultMap map[string]interface{}
-	if err := json.Unmarshal(data, &resultMap); err != nil {
-		return nil, fmt.Errorf("error unmarshaling to map: %w", err)
-	}
-	return resultMap, nil
-}
-
 // IngestQueryMetrics processes and ingests query metrics into the New Relic entity
 func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) error {
 
@@ -190,10 +178,14 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 
 	for _, result := range results {
 		// Convert the result into a map[string]interface{} for dynamic key-value access
-		resultMap, err := convertResultToMap(result)
+		var resultMap map[string]interface{}
+		data, err := json.Marshal(result)
 		if err != nil {
-			log.Error("failed to convert result: %v", err)
-			continue
+			log.Error("error marshaling to JSON: %w", err)
+		}
+		err = json.Unmarshal(data, &resultMap)
+		if err != nil {
+			log.Error("error unmarshaling to map: %w", err)
 		}
 
 		// Create a new metric set with the query name

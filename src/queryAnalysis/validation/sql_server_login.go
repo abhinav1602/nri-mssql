@@ -1,7 +1,7 @@
 package validation
 
 import (
-	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 )
 
 func checkSQLServerLoginEnabled(sqlConnection *connection.SQLConnection) (bool, error) {

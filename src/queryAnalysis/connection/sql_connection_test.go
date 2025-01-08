@@ -8,12 +8,10 @@ import (
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
-var ErrMockCloseFailure = errors.New("mock close failure")
-
 func Test_SQLConnection_Close(t *testing.T) {
 	conn, mock := CreateMockSQL(t)
 
-	mock.ExpectClose().WillReturnError(ErrMockCloseFailure)
+	mock.ExpectClose().WillReturnError(errors.New("error"))
 	conn.Close()
 
 	if err := mock.ExpectationsWereMet(); err != nil {

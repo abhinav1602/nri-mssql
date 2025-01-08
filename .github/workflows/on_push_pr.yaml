@@ -6,7 +6,7 @@ on:
       - main
       - master
       - renovate/**
-      - epic_queryanalysis
+      - epic_queryAnalysis
   pull_request:
 
 jobs:
