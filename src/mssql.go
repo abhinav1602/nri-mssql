@@ -15,7 +15,7 @@ import (
 	"github.com/newrelic/nri-mssql/src/instance"
 	"github.com/newrelic/nri-mssql/src/inventory"
 	"github.com/newrelic/nri-mssql/src/metrics"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis"
+	"github.com/newrelic/nri-mssql/src/queryanalysis"
 )
 
 const (
@@ -96,7 +96,7 @@ func main() {
 	i.Clear()
 
 	if args.EnableQueryPerformance {
-		queryAnalysis.QueryPerformanceMain(i, args)
+		queryanalysis.QueryPerformanceMain(i, args)
 	}
 
 }
