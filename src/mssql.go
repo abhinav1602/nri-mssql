@@ -15,6 +15,7 @@ import (
 	"github.com/newrelic/nri-mssql/src/instance"
 	"github.com/newrelic/nri-mssql/src/inventory"
 	"github.com/newrelic/nri-mssql/src/metrics"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis"
 )
 
 const (
