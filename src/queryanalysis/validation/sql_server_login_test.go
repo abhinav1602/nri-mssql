@@ -1,16 +1,14 @@
-// src/queryAnalysis/validation/permissions_test.go
+// src/queryAnalysis/validation/sql_server_login_test.go
 package validation
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
-var errQueryError = errors.New("query error")
-
-func TestCheckPermissionsAndLogin(t *testing.T) {
+func TestCheckPermissionsAndLogin_LoginEnabled(t *testing.T) {
 	sqlConnection, mock := setupMockDB(t)
 	defer sqlConnection.Connection.Close()
 
@@ -22,11 +20,16 @@ func TestCheckPermissionsAndLogin(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestCheckPermissionsAndLogin_PermissionsError(t *testing.T) {
+func TestCheckPermissionsAndLogin_LoginEnabledError(t *testing.T) {
 	sqlConnection, mock := setupMockDB(t)
 	defer sqlConnection.Connection.Close()
 
+	// Mock checkPermissions
 	mock.ExpectQuery("SELECT CASE WHEN IS_SRVROLEMEMBER\\('sysadmin'\\) = 1 OR HAS_PERMS_BY_NAME\\(null, null, 'VIEW SERVER STATE'\\) = 1 THEN 1 ELSE 0 END AS has_permission").
+		WillReturnRows(sqlmock.NewRows([]string{"has_permission"}).AddRow(true))
+
+	// Mock checkSQLServerLoginEnabled error
+	mock.ExpectQuery("SELECT CASE WHEN SERVERPROPERTY\\('IsIntegratedSecurityOnly'\\) = 0 THEN 1 ELSE 0 END AS is_login_enabled").
 		WillReturnError(errQueryError)
 
 	result := checkPermissionsAndLogin(sqlConnection)

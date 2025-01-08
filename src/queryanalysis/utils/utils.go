@@ -59,6 +59,8 @@ func BindQueryResults(arguments args.ArgumentList,
 	queryDetailsDto models.QueryDetailsDto,
 	integration *integration.Integration,
 	sqlConnection *connection.SQLConnection) ([]interface{}, error) {
+	defer rows.Close()
+
 	results := make([]interface{}, 0)
 
 	for rows.Next() {

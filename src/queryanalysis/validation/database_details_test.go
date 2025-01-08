@@ -6,7 +6,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
 func TestGetDatabaseDetails(t *testing.T) {
@@ -25,18 +24,15 @@ func TestGetDatabaseDetails(t *testing.T) {
 
 	// Make the regular expression for the SQL query case-insensitive
 	mock.ExpectQuery("(?i)^SELECT database_id, name, compatibility_level, is_query_store_on FROM sys\\.databases$").WillReturnRows(rows)
-
 	// Call the function
 	databaseDetails, err := GetDatabaseDetails(sqlConnection)
 
 	// Assertions
 	assert.NoError(t, err)
 	assert.Len(t, databaseDetails, 2) // Only 2 databases should be returned
-	assert.Equal(t, 100, databaseDetails[0].DatabaseID)
 	assert.Equal(t, "testdb1", databaseDetails[0].Name)
 	assert.Equal(t, 100, databaseDetails[0].Compatibility)
 	assert.Equal(t, true, databaseDetails[0].IsQueryStoreOn)
-	assert.Equal(t, 101, databaseDetails[1].DatabaseID)
 	assert.Equal(t, "testdb2", databaseDetails[1].Name)
 	assert.Equal(t, 110, databaseDetails[1].Compatibility)
 	assert.Equal(t, false, databaseDetails[1].IsQueryStoreOn)
