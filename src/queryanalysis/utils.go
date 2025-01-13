@@ -185,6 +185,20 @@ func convertResultToMap(result interface{}) (map[string]interface{}, error) {
 	return resultMap, nil
 }
 
+// handleGaugeMetric processes the gauge metric and logs any errors encountered
+func handleGaugeMetric(key, strValue string, metricSet *metric.Set) {
+	floatValue, err := strconv.ParseFloat(strValue, 64)
+	if err != nil {
+		log.Error("failed to parse float value for key %s: %v", key, err)
+		return
+	}
+
+	err = metricSet.SetMetric(key, floatValue, metric.GAUGE)
+	if err != nil {
+		log.Error("failed to set metric for key %s: %v", key, err)
+	}
+}
+
 // IngestQueryMetrics processes and ingests query metrics into the New Relic entity
 func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) error {
 
@@ -241,8 +255,12 @@ func DetectMetricType(value string) metric.SourceType {
 	return metric.GAUGE
 }
 
+var re = regexp.MustCompile(`'[^']*'|\d+|".*?"`)
+
 func AnonymizeQueryText(query *string) {
-	re := regexp.MustCompile(`'[^']*'|\d+|".*?"`)
+	if query == nil {
+		return
+	}
 	anonymizedQuery := re.ReplaceAllString(*query, "?")
 	*query = anonymizedQuery
 }
