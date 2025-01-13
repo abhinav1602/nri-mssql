@@ -12,13 +12,13 @@ import (
 // ArgumentList struct that holds all MSSQL arguments
 type ArgumentList struct {
 	sdkArgs.DefaultArgumentList
-	Username                     string `default:"" help:"The Microsoft SQL Server connection user name"`
-	Password                     string `default:"" help:"The Microsoft SQL Server connection password"`
+	Username                     string `default:"newrelic" help:"The Microsoft SQL Server connection user name"`
+	Password                     string `default:"Devpassword@123" help:"The Microsoft SQL Server connection password"`
 	Instance                     string `default:"" help:"The Microsoft SQL Server instance to connect to"`
-	Hostname                     string `default:"127.0.0.1" help:"The Microsoft SQL Server connection host name"`
-	Port                         string `default:"" help:"The Microsoft SQL Server port to connect to. Only needed when instance not specified"`
-	EnableSSL                    bool   `default:"false" help:"If true will use SSL encryption, false will not use encryption"`
-	TrustServerCertificate       bool   `default:"false" help:"If true server certificate is not verified for SSL. If false certificate will be verified against supplied certificate"`
+	Hostname                     string `default:"20.235.136.68" help:"The Microsoft SQL Server connection host name"`
+	Port                         string `default:"1433" help:"The Microsoft SQL Server port to connect to. Only needed when instance not specified"`
+	EnableSSL                    bool   `default:"true" help:"If true will use SSL encryption, false will not use encryption"`
+	TrustServerCertificate       bool   `default:"true" help:"If true server certificate is not verified for SSL. If false certificate will be verified against supplied certificate"`
 	CertificateLocation          string `default:"" help:"Certificate file to verify SSL encryption against"`
 	EnableBufferMetrics          bool   `default:"true" help:"Enable collection of buffer space metrics."`
 	EnableDatabaseReserveMetrics bool   `default:"true" help:"Enable collection of database reserve space metrics."`
@@ -28,7 +28,7 @@ type ArgumentList struct {
 	ShowVersion                  bool   `default:"false" help:"Print build information and exit"`
 	ExtraConnectionURLArgs       string `default:"" help:"Appends additional parameters to connection url. Ex. 'applicationintent=readonly&foo=bar'"`
 	EnableDiskMetricsInBytes     bool   `default:"true" help:"Enable collection of instance.diskInBytes."`
-	EnableQueryPerformance       bool   `default:"false" help:"Enable collection of detailed query performance metrics."`
+	EnableQueryPerformance       bool   `default:"true" help:"Enable collection of detailed query performance metrics."`
 	QueryResponseTimeThreshold   int    `default:"0" help:"Threshold in milliseconds for query response time. If response time exceeds this threshold, the query will be considered slow."`
 	QueryCountThreshold          int    `default:"20" help:"Maximum number of queries returned in query analysis results."`
 	FetchInterval                int    `default:"15" help:"Interval in seconds for fetching grouped slow queries; Should always be same as mysql-config interval."`
