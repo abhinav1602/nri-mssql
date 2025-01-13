@@ -17,6 +17,8 @@ func TestGetDatabaseDetails(t *testing.T) {
 	assert.NoError(t, err)
 	defer db.Close()
 	sqlConnection := &connection.SQLConnection{Connection: sqlx.NewDb(db, "sqlmock")}
+
+	// Define the expected rows
 	rows := sqlmock.NewRows([]string{"database_id", "name", "compatibility_level", "is_query_store_on"}).
 		AddRow(100, "testdb1", 100, true).
 		AddRow(101, "testdb2", 110, false).
@@ -25,9 +27,11 @@ func TestGetDatabaseDetails(t *testing.T) {
 	databaseDetails, err := GetDatabaseDetails(sqlConnection)
 	assert.NoError(t, err)
 	assert.Len(t, databaseDetails, 2) // Only 2 databases should be returned
+	assert.Equal(t, 100, databaseDetails[0].DatabaseID)
 	assert.Equal(t, "testdb1", databaseDetails[0].Name)
 	assert.Equal(t, 100, databaseDetails[0].Compatibility)
 	assert.Equal(t, true, databaseDetails[0].IsQueryStoreOn)
+	assert.Equal(t, 101, databaseDetails[1].DatabaseID)
 	assert.Equal(t, "testdb2", databaseDetails[1].Name)
 	assert.Equal(t, 110, databaseDetails[1].Compatibility)
 	assert.Equal(t, false, databaseDetails[1].IsQueryStoreOn)
