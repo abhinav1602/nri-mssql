@@ -502,3 +502,64 @@ func TestAnonymizeQueryText_NoSensitiveData(t *testing.T) {
 
 	assert.Equal(t, expected, query, "anonymized query should remain unchanged if there is no sensitive data")
 }
+
+func TestConvertResultToMap(t *testing.T) {
+	// Test case: Valid input
+	t.Run("Valid input", func(t *testing.T) {
+		type SampleStruct struct {
+			Name  string `json:"name"`
+			Age   int    `json:"age"`
+			Email string `json:"email"`
+		}
+
+		input := SampleStruct{Name: "Alice", Age: 30, Email: "alice@example.com"}
+
+		resultMap, err := convertResultToMap(input)
+		assert.NoError(t, err)
+		if assert.NotNil(t, resultMap) {
+			assert.Equal(t, "Alice", resultMap["name"])
+			assert.Equal(t, float64(30), resultMap["age"]) // json.Unmarshal numbers to float64
+			assert.Equal(t, "alice@example.com", resultMap["email"])
+		}
+	})
+
+	// Test case: Empty struct
+	t.Run("Empty struct", func(t *testing.T) {
+		type SampleStruct struct{}
+
+		input := SampleStruct{}
+
+		resultMap, err := convertResultToMap(input)
+		assert.NoError(t, err)
+		if assert.NotNil(t, resultMap) {
+			assert.Len(t, resultMap, 0)
+		}
+	})
+
+	// Test case: Invalid input (binary data or non-serializable)
+	t.Run("Non-serializable input", func(t *testing.T) {
+		// Using a channel which is non-serializable
+		input := make(chan int)
+
+		resultMap, err := convertResultToMap(input)
+		assert.Error(t, err)
+		assert.Nil(t, resultMap)
+	})
+
+	// Test case: Struct with private fields
+	t.Run("Struct with private fields", func(t *testing.T) {
+		type SampleStruct struct {
+			publicField  string
+			privateField string
+		}
+
+		input := SampleStruct{"public", "private"}
+
+		resultMap, err := convertResultToMap(input)
+		assert.NoError(t, err)
+		if assert.NotNil(t, resultMap) {
+			// Expect that private fields are not marshaled into JSON
+			assert.Len(t, resultMap, 0)
+		}
+	})
+}
