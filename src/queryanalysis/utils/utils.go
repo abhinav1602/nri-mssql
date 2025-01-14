@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/newrelic/go-agent/v3/newrelic"
 	"regexp"
 	"strconv"
 
@@ -44,13 +45,34 @@ func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) 
 	return queries, nil
 }
 
-func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
+func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection, executeAndBindTransaction *newrelic.Transaction) ([]interface{}, error) {
+	segment := newrelic.DatastoreSegment{
+		StartTime: executeAndBindTransaction.StartSegmentNow(),
+		// Product is the datastore type.  See the constants in
+		// https://github.com/newrelic/go-agent/blob/master/v3/newrelic/datastore.go.  Product
+		// is one of the fields primarily responsible for the grouping of Datastore
+		// metrics.
+		Product: newrelic.DatastoreMSSQL,
+		// Collection is the table or group being operated upon in the datastore,
+		// e.g. "users_table".  This becomes the db.collection attribute on Span
+		// events and Transaction Trace segments.  Collection is one of the fields
+		// primarily responsible for the grouping of Datastore metrics.
+		Collection: "executingQuery " + queryDetailsDto.Name,
+		// Operation is the relevant action, e.g. "SELECT" or "GET".  Operation is
+		// one of the fields primarily responsible for the grouping of Datastore
+		// metrics.
+		Operation: "SELECT",
+	}
+	defer segment.End()
+
 	rows, err := sqlConnection.Connection.Queryx(queryDetailsDto.Query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
+	defer rows.Close()
+	segment.End()
 
-	return BindQueryResults(arguments, rows, queryDetailsDto, integration, sqlConnection)
+	return BindQueryResults(arguments, rows, queryDetailsDto, integration, sqlConnection, executeAndBindTransaction)
 }
 
 // BindQueryResults binds query results to the specified data model using `sqlx`
@@ -58,17 +80,18 @@ func BindQueryResults(arguments args.ArgumentList,
 	rows *sqlx.Rows,
 	queryDetailsDto models.QueryDetailsDto,
 	integration *integration.Integration,
-	sqlConnection *connection.SQLConnection) ([]interface{}, error) {
-	defer rows.Close()
-
+	sqlConnection *connection.SQLConnection,
+	executeAndBindTransaction *newrelic.Transaction,
+) ([]interface{}, error) {
 	results := make([]interface{}, 0)
 
 	for rows.Next() {
+		segment := executeAndBindTransaction.StartSegment("bindQueryResults - " + queryDetailsDto.Name)
 		switch queryDetailsDto.Type {
 		case "slowQueries":
 			var model models.TopNSlowQueryDetails
 			if err := rows.StructScan(&model); err != nil {
-				fmt.Println("Could not scan row: ", err)
+				log.Error("Could not scan row: ", err)
 				continue
 			}
 			AnonymizeQueryText(model.QueryText)
@@ -83,7 +106,7 @@ func BindQueryResults(arguments args.ArgumentList,
 		case "waitAnalysis":
 			var model models.WaitTimeAnalysis
 			if err := rows.StructScan(&model); err != nil {
-				fmt.Println("Could not scan row: ", err)
+				log.Error("Could not scan row: ", err)
 				continue
 			}
 			AnonymizeQueryText(model.QueryText)
@@ -92,7 +115,7 @@ func BindQueryResults(arguments args.ArgumentList,
 		case "blockingSessions":
 			var model models.BlockingSessionQueryDetails
 			if err := rows.StructScan(&model); err != nil {
-				fmt.Println("Could not scan row: ", err)
+				log.Error("Could not scan row: ", err)
 				continue
 			}
 			AnonymizeQueryText(model.BlockedQueryText)
@@ -101,6 +124,7 @@ func BindQueryResults(arguments args.ArgumentList,
 		default:
 			return nil, fmt.Errorf("%w: %s", ErrUnknownQueryType, queryDetailsDto.Type)
 		}
+		segment.End()
 	}
 	return results, nil
 }
