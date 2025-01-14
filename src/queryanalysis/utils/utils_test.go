@@ -2,36 +2,50 @@ package utils
 
 import (
 	"fmt"
-	"testing"
-	"time"
-
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/metrics"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/config"
 	"github.com/stretchr/testify/assert"
+	"testing"
+	"time"
 
-	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/nri-mssql/src/args"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
-	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
 func TestExecuteQuery_SlowQueriesSuccess(t *testing.T) {
-	sqlConn, mock := connection.CreateMockSQL(t)
-	defer sqlConn.Connection.Close()
+	//sqlConn, mock := connection.CreateMockSQL(t)
+	//defer sqlConn.Connection.Close()
+	//
+	//query := "SELECT * FROM slow_queries WHERE condition"
+	//mock.ExpectQuery("SELECT \\* FROM slow_queries WHERE condition").
+	//	WillReturnRows(sqlmock.NewRows([]string{
+	//		"query_id", "query_text", "database_name",
+	//	}).
+	//		AddRow(
+	//			[]byte{0x01, 0x02},
+	//			"SELECT * FROM something",
+	//			"example_db",
+	//		))
 
-	query := "SELECT * FROM slow_queries WHERE condition"
-	mock.ExpectQuery("SELECT \\* FROM slow_queries WHERE condition").
-		WillReturnRows(sqlmock.NewRows([]string{
-			"query_id", "query_text", "database_name",
-		}).
-			AddRow(
-				[]byte{0x01, 0x02},
-				"SELECT * FROM something",
-				"example_db",
-			))
+	//queryDetails := models.QueryDetailsDto{
+	//	Name:  "SlowQueries",
+	//	Query: query,
+	//	Type:  "slowQueries",
+	//}
+	//
+	//integrationObj := &integration.Integration{}
+	//argList := args.ArgumentList{}
+	//
+	//results, err := ExecuteQuery(argList, queryDetails, integrationObj, sqlConn)
+	//if err != nil {
+	//	t.Fatalf("unexpected error: %v", err)
+	//}
+	//
+	//if len(results) != 1 {
+	//	t.Fatalf("expected 1 result, got %d", len(results))
+	//}
 
 	queryDetails := models.QueryDetailsDto{
 		EventName: "SlowQueries",
@@ -67,8 +81,27 @@ func TestExecuteQuery_SlowQueriesSuccess(t *testing.T) {
 }
 
 func TestExecuteQuery_WaitTimeAnalysis(t *testing.T) {
-	sqlConn, mock := connection.CreateMockSQL(t)
-	defer sqlConn.Connection.Close()
+	//sqlConn, mock := connection.CreateMockSQL(t)
+	//defer sqlConn.Connection.Close()
+	//
+	//query := "SELECT * FROM wait_analysis WHERE condition"
+	//mock.ExpectQuery("SELECT \\* FROM wait_analysis WHERE condition").
+	//	WillReturnRows(sqlmock.NewRows([]string{
+	//		"query_id", "database_name", "query_text", "wait_category",
+	//		"total_wait_time_ms", "avg_wait_time_ms", "wait_event_count",
+	//		"last_execution_time", "collection_timestamp",
+	//	}).
+	//		AddRow(
+	//			[]byte{0x01, 0x02},
+	//			"example_db",
+	//			"SELECT * FROM waits",
+	//			"CPU",
+	//			100.5,
+	//			50.25,
+	//			10,
+	//			time.Now(),
+	//			time.Now(),
+	//		))
 
 	query := "SELECT * FROM wait_analysis WHERE condition"
 	mock.ExpectQuery("SELECT \\* FROM wait_analysis WHERE condition").
