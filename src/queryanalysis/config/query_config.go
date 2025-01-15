@@ -122,7 +122,8 @@ var Queries = []models.QueryDetailsDto{
 	},
 	{
 		Name: "MSSQLWaitTimeAnalysis",
-		Query: `DECLARE @TopN INT = %d; 				-- Number of results to retrieve
+		Query: `DECLARE @IntervalSeconds INT = %d;     	-- Define the interval in seconds
+				DECLARE @TopN INT = %d; 				-- Number of results to retrieve
 				DECLARE @TextTruncateLimit INT = %d; 	-- Truncate limit for query_text
 				DECLARE @sql NVARCHAR(MAX) = '';
 				DECLARE @dbName NVARCHAR(128);
@@ -172,6 +173,7 @@ var Queries = []models.QueryDetailsDto{
 					  qsqt.query_sql_text NOT LIKE ''%%WITH%%''
 					  AND qsqt.query_sql_text NOT LIKE ''%%sys.%%''
 					  AND qsqt.query_sql_text NOT LIKE ''%%INFORMATION_SCHEMA%%''
+					  AND qsq.last_execution_time > DATEADD(second, -' + CAST(@IntervalSeconds AS NVARCHAR(10)) + ', GETUTCDATE())
 					GROUP BY 
 					  qsqt.query_sql_text 
 				  ),
@@ -207,6 +209,7 @@ var Queries = []models.QueryDetailsDto{
 					  qsqt.query_sql_text NOT LIKE ''%%WITH%%''
 					  AND qsqt.query_sql_text NOT LIKE ''%%sys.%%''
 					  AND qsqt.query_sql_text NOT LIKE ''%%INFORMATION_SCHEMA%%''
+					  AND qsq.last_execution_time > DATEADD(second, -' + CAST(@IntervalSeconds AS NVARCHAR(10)) + ', GETUTCDATE())
 				  )
 				  SELECT
 					query_id,
@@ -226,10 +229,12 @@ var Queries = []models.QueryDetailsDto{
 				
 				  FETCH NEXT FROM db_cursor INTO @dbName;
 				END
+				
 				CLOSE db_cursor;
 				DEALLOCATE db_cursor;
+				
 				SELECT TOP (@TopN) * FROM @resultTable 
-				ORDER BY total_wait_time_ms DESC;`,
+				ORDER BY last_execution_time DESC;`,
 		Type: "waitAnalysis",
 	},
 	{
@@ -308,7 +313,7 @@ TopPlans AS (
     CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS st
     CROSS APPLY sys.dm_exec_query_plan(qs.plan_handle) AS qp
     WHERE CONVERT(NVARCHAR(50), qs.query_hash) = @QueryID 
-    AND qs.last_execution_time BETWEEN DATEADD(SECOND, -@IntervalSeconds, GETUTCDATE()) AND GETUTCDATE() 
+    AND qs.last_execution_time BETWEEN DATEADD(SECOND, -@IntervalSeconds, GETDATE()) AND GETDATE() 
     AND COALESCE((qs.total_elapsed_time / NULLIF(qs.execution_count, 0)) / 1000, 0) > @ElapsedTimeThreshold
     ORDER BY avg_elapsed_time_ms DESC
 ),
@@ -348,5 +353,4 @@ var (
 	SlowQueryCountThresholdDefault    = 20
 	IndividualQueryCountMax           = 10
 	GroupedQueryCountMax              = 30
-	MaxSystemDatabaseID               = 4
 )
