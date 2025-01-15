@@ -97,8 +97,6 @@ func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetai
 		// metrics.
 		Operation: "SELECT",
 	}
-	defer segment.End()
-
 	rows, err := sqlConnection.Connection.Queryx(queryDetailsDto.Query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
@@ -191,10 +189,28 @@ func ProcessExecutionPlans(arguments args.ArgumentList, integration *integration
 	GenerateAndIngestExecutionPlan(arguments, integration, sqlConnection, queryIDString)
 }
 
-func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *integration.Integration, sqlConnection *connection.SQLConnection, queryIDString string) {
-	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, min(config.IndividualQueryCountMax, arguments.QueryMonitoringCountThreshold),
-		arguments.QueryMonitoringResponseTimeThreshold, queryIDString, arguments.QueryMonitoringFetchInterval, config.TextTruncateLimit)
+func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *integration.Integration,
+	sqlConnection *connection.SQLConnection, queryIDString string, executeAndBindTransaction *newrelic.Transaction) {
+	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, min(config.IndividualQueryCountMax, arguments.QueryCountThreshold),
+		arguments.QueryResponseTimeThreshold, queryIDString, arguments.FetchInterval, config.TextTruncateLimit)
 
+	segment := newrelic.DatastoreSegment{
+		StartTime: executeAndBindTransaction.StartSegmentNow(),
+		// Product is the datastore type.  See the constants in
+		// https://github.com/newrelic/go-agent/blob/master/v3/newrelic/datastore.go.  Product
+		// is one of the fields primarily responsible for the grouping of Datastore
+		// metrics.
+		Product: newrelic.DatastoreMSSQL,
+		// Collection is the table or group being operated upon in the datastore,
+		// e.g. "users_table".  This becomes the db.collection attribute on Span
+		// events and Transaction Trace segments.  Collection is one of the fields
+		// primarily responsible for the grouping of Datastore metrics.
+		Collection: "executingQuery -  " + "MSSQLQueryExecutionPlans",
+		// Operation is the relevant action, e.g. "SELECT" or "GET".  Operation is
+		// one of the fields primarily responsible for the grouping of Datastore
+		// metrics.
+		Operation: "SELECT",
+	}
 	var model models.ExecutionPlanResult
 
 	rows, err := sqlConnection.Connection.Queryx(executionPlanQuery)
@@ -203,6 +219,7 @@ func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *in
 		return
 	}
 	defer rows.Close()
+	segment.End()
 
 	results := make([]interface{}, 0)
 
@@ -219,10 +236,12 @@ func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *in
 		EventName: "MSSQLQueryExecutionPlans",
 	}
 
+	injestSegment := executeAndBindTransaction.StartSegment("injestExecutionPlan")
 	// Ingest the execution plan
 	if err := IngestQueryMetricsInBatches(results, queryDetailsDto, integration, sqlConnection); err != nil {
 		log.Error("Failed to ingest execution plan: %s", err)
 	}
+	injestSegment.End()
 }
 
 func IngestQueryMetricsInBatches(results []interface{},
