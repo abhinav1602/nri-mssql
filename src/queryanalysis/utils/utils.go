@@ -33,7 +33,7 @@ func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) 
 			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval, arguments.QueryCountThreshold,
 				arguments.QueryResponseTimeThreshold, config.TextTruncateLimit)
 		case "waitAnalysis":
-			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval, arguments.QueryCountThreshold, config.TextTruncateLimit)
+			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.QueryCountThreshold, config.TextTruncateLimit)
 		case "blockingSessions":
 			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.QueryCountThreshold, config.TextTruncateLimit)
 		default:
@@ -49,7 +49,7 @@ func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetai
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
-
+	defer rows.Close()
 	return BindQueryResults(arguments, rows, queryDetailsDto, integration, sqlConnection)
 }
 
@@ -59,8 +59,6 @@ func BindQueryResults(arguments args.ArgumentList,
 	queryDetailsDto models.QueryDetailsDto,
 	integration *integration.Integration,
 	sqlConnection *connection.SQLConnection) ([]interface{}, error) {
-	defer rows.Close()
-
 	results := make([]interface{}, 0)
 
 	for rows.Next() {
@@ -76,7 +74,9 @@ func BindQueryResults(arguments args.ArgumentList,
 			results = append(results, model)
 
 			// fetch and generate execution plan
-			GenerateAndInjestExecutionPlan(arguments, integration, sqlConnection, *model.QueryID)
+			if model.QueryID != nil {
+				GenerateAndIngestExecutionPlan(arguments, integration, sqlConnection, *model.QueryID)
+			}
 
 		case "waitAnalysis":
 			var model models.WaitTimeAnalysis
@@ -103,7 +103,7 @@ func BindQueryResults(arguments args.ArgumentList,
 	return results, nil
 }
 
-func GenerateAndInjestExecutionPlan(arguments args.ArgumentList,
+func GenerateAndIngestExecutionPlan(arguments args.ArgumentList,
 	integration *integration.Integration,
 	sqlConnection *connection.SQLConnection,
 	queryID models.HexString) {
@@ -240,8 +240,12 @@ func DetectMetricType(value string) metric.SourceType {
 	return metric.GAUGE
 }
 
+var re = regexp.MustCompile(`'[^']*'|\d+|".*?"`)
+
 func AnonymizeQueryText(query *string) {
-	re := regexp.MustCompile(`'[^']*'|\d+|".*?"`)
+	if query == nil {
+		return
+	}
 	anonymizedQuery := re.ReplaceAllString(*query, "?")
 	*query = anonymizedQuery
 }
