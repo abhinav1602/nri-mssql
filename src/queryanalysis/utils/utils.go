@@ -208,7 +208,9 @@ func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *in
 	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, min(config.IndividualQueryCountMax, arguments.QueryCountThreshold),
 		arguments.QueryResponseTimeThreshold, queryIDString, arguments.FetchInterval, config.TextTruncateLimit)
 
-	segment := newrelic.DatastoreSegment{
+	var model models.ExecutionPlanResult
+
+	executionQuerySegment := newrelic.DatastoreSegment{
 		StartTime: executeAndBindTransaction.StartSegmentNow(),
 		// Product is the datastore type.  See the constants in
 		// https://github.com/newrelic/go-agent/blob/master/v3/newrelic/datastore.go.  Product
@@ -225,15 +227,13 @@ func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *in
 		// metrics.
 		Operation: "SELECT",
 	}
-	var model models.ExecutionPlanResult
-
 	rows, err := sqlConnection.Connection.Queryx(executionPlanQuery)
 	if err != nil {
 		log.Error("Failed to execute execution plan query: %s", err)
 		return
 	}
 	defer rows.Close()
-	segment.End()
+	executionQuerySegment.End()
 
 	results := make([]interface{}, 0)
 
