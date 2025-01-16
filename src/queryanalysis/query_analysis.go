@@ -8,8 +8,6 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/utils"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/validation"
-	"os"
-	"time"
 )
 
 // queryPerformanceMain runs all types of analyzes
