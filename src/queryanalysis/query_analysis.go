@@ -9,38 +9,10 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryanalysis/retrymechanism"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/utils"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/validation"
-	"os"
-	"time"
 )
 
 // queryPerformanceMain runs all types of analyzes
-func QueryPerformanceMain(integration *integration.Integration, arguments args.ArgumentList) {
-
-	// Create an Application:
-	app, err := newrelic.NewApplication(
-		// Name your application
-		newrelic.ConfigAppName("nri-mssql-perf-go-agent"),
-		// Fill in your New Relic license key
-		newrelic.ConfigLicense("4d5e50ac8ee18de886a411dedbef72ceFFFFNRAL"),
-		// Add logging:
-		newrelic.ConfigDebugLogger(os.Stdout),
-		// Optional: add additional changes to your configuration via a config function:
-		func(cfg *newrelic.Config) {
-			cfg.CustomInsightsEvents.Enabled = true
-		},
-	)
-	// If an application could not be created then err will reveal why.
-	if err != nil {
-		log.Debug("unable to create New Relic Application", err)
-		return
-	}
-	defer app.Shutdown(10 * time.Second) // Use the app variable
-
-	// Ensure the application is connected
-	if err := app.WaitForConnection(10 * time.Second); err != nil {
-		log.Debug("New Relic Application did not connect:", err)
-		return
-	}
+func QueryPerformanceMain(integration *integration.Integration, arguments args.ArgumentList, app *newrelic.Application) {
 
 	createConnectionTxn := app.StartTransaction("createSQLConnection")
 	// Create a new connection

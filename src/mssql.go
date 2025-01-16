@@ -3,18 +3,20 @@ package main
 
 import (
 	"fmt"
+	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
+	"github.com/newrelic/nri-mssql/src/queryanalysis"
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/instance"
 	"github.com/newrelic/nri-mssql/src/inventory"
 	"github.com/newrelic/nri-mssql/src/metrics"
-	"github.com/newrelic/nri-mssql/src/queryanalysis"
 )
 
 const (
@@ -28,6 +30,35 @@ var (
 )
 
 func main() {
+
+	// Create an Application:
+	app, err := newrelic.NewApplication(
+		// Name your application
+		newrelic.ConfigAppName("mssql-perf-old-instance"),
+		// Fill in your New Relic license key
+		newrelic.ConfigLicense("84529bfd2aacf045f62ac168282ef8b2FFFFNRAL"),
+		// Add logging:
+		newrelic.ConfigDebugLogger(os.Stdout),
+		// Optional: add additional changes to your configuration via a config function:
+		func(cfg *newrelic.Config) {
+			cfg.CustomInsightsEvents.Enabled = true
+		},
+	)
+	// If an application could not be created then err will reveal why.
+	if err != nil {
+		log.Debug("unable to create New Relic Application", err)
+		return
+	}
+	defer app.Shutdown(10 * time.Second) // Use the app variable
+
+	// Ensure the application is connected
+	if err := app.WaitForConnection(10 * time.Second); err != nil {
+		log.Debug("New Relic Application did not connect:", err)
+		return
+	}
+
+	totalNriMsSqlExecutionTime := app.StartTransaction("TotalNriMsSqlExecutionTime")
+
 	var args args.ArgumentList
 	// Create Integration
 	i, err := integration.New(integrationName, integrationVersion, integration.Args(&args))
@@ -95,6 +126,10 @@ func main() {
 	i.Clear()
 
 	if args.EnableQueryPerformance {
-		queryanalysis.QueryPerformanceMain(i, args)
+		totalNriMsSqlQueryPerformanceExecutionTime := app.StartTransaction("TotalNriMsSqlQueryPerformanceExecutionTime")
+		queryanalysis.QueryPerformanceMain(i, args, app)
+		totalNriMsSqlQueryPerformanceExecutionTime.End()
 	}
+
+	totalNriMsSqlExecutionTime.End()
 }
