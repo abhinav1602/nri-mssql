@@ -46,7 +46,7 @@ func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) 
 }
 
 func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection, executeAndBindTransaction *newrelic.Transaction) ([]interface{}, error) {
-	segment := newrelic.DatastoreSegment{
+	BindQuerySegment := newrelic.DatastoreSegment{
 		StartTime: executeAndBindTransaction.StartSegmentNow(),
 		// Product is the datastore type.  See the constants in
 		// https://github.com/newrelic/go-agent/blob/master/v3/newrelic/datastore.go.  Product
@@ -68,7 +68,7 @@ func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetai
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer rows.Close()
-	segment.End()
+	BindQuerySegment.End()
 
 	return BindQueryResults(arguments, rows, queryDetailsDto, integration, sqlConnection, executeAndBindTransaction)
 }
@@ -81,6 +81,8 @@ func BindQueryResults(arguments args.ArgumentList,
 	sqlConnection *connection.SQLConnection,
 	executeAndBindTransaction *newrelic.Transaction,
 ) ([]interface{}, error) {
+	BindQuerySegment := executeAndBindTransaction.StartSegment("bindQueryResults")
+
 	results := make([]interface{}, 0)
 
 	for rows.Next() {
@@ -92,14 +94,19 @@ func BindQueryResults(arguments args.ArgumentList,
 				log.Error("Could not scan row: ", err)
 				continue
 			}
+
+			AnonymizeSegment := executeAndBindTransaction.StartSegment("bindQueryResults - " + queryDetailsDto.Name + "Subsegment - Anonymize")
 			AnonymizeQueryText(model.QueryText)
+			AnonymizeSegment.End()
 
 			results = append(results, model)
 
+			SingleExecutionPlanSegment := executeAndBindTransaction.StartSegment("bindQueryResults - " + "SingleExecutionPlanSubsegment")
 			// fetch and generate execution plan
 			if model.QueryID != nil {
 				GenerateAndInjestExecutionPlan(arguments, integration, sqlConnection, *model.QueryID, executeAndBindTransaction)
 			}
+			SingleExecutionPlanSegment.End()
 
 		case "waitAnalysis":
 			var model models.WaitTimeAnalysis
@@ -107,7 +114,9 @@ func BindQueryResults(arguments args.ArgumentList,
 				log.Error("Could not scan row: ", err)
 				continue
 			}
+			AnonymizeSegment := executeAndBindTransaction.StartSegment("bindQueryResults - " + queryDetailsDto.Name + "Subsegment - Anonymize")
 			AnonymizeQueryText(model.QueryText)
+			AnonymizeSegment.End()
 
 			results = append(results, model)
 		case "blockingSessions":
@@ -116,14 +125,19 @@ func BindQueryResults(arguments args.ArgumentList,
 				log.Error("Could not scan row: ", err)
 				continue
 			}
+
+			AnonymizeSegment := executeAndBindTransaction.StartSegment("bindQueryResults - " + queryDetailsDto.Name + "Subsegment - Anonymize")
 			AnonymizeQueryText(model.BlockedQueryText)
 			AnonymizeQueryText(model.BlockingQueryText)
+			AnonymizeSegment.End()
+
 			results = append(results, model)
 		default:
 			return nil, fmt.Errorf("%w: %s", ErrUnknownQueryType, queryDetailsDto.Type)
 		}
 		segment.End()
 	}
+	BindQuerySegment.End()
 	return results, nil
 }
 
@@ -179,12 +193,12 @@ func GenerateAndInjestExecutionPlan(arguments args.ArgumentList,
 		Type:  "executionPlan",
 	}
 
-	injestSegment := executeAndBindTransaction.StartSegment("injestExecutionPlan")
+	injestExecutionPlanSegment := executeAndBindTransaction.StartSegment("injestExecutionPlan")
 	// Ingest the execution plan
 	if err := IngestQueryMetricsInBatches(results, queryDetailsDto, integration, sqlConnection); err != nil {
 		log.Error("Failed to ingest execution plan: %s", err)
 	}
-	injestSegment.End()
+	injestExecutionPlanSegment.End()
 }
 
 func IngestQueryMetricsInBatches(results []interface{},
