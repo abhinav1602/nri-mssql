@@ -21,7 +21,7 @@ test:
 integration-test:
 	@echo "=== $(INTEGRATION) === [ test ]: running integration tests..."
 	@docker compose -f tests/docker-compose.yml up -d
-	@sleep 30
+	@sleep 120
 	@go test -v -tags=integration -count 1 ./tests/mssql_test.go -timeout 150s || (ret=$$?; docker compose -f tests/docker-compose.yml down -v && exit $$ret)
 	@docker compose -f tests/docker-compose.yml down -v
 
