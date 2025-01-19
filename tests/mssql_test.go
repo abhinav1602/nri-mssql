@@ -21,10 +21,14 @@ import (
 )
 
 var (
-	oldestSupportedPerf  = "mssql-perf-oldest"
-	latestSupportedPerf  = "mssql-perf-latest"
-	unsupportedPerf      = "mssql-noext"
-	perfContainers       = []string{oldestSupportedPerf, latestSupportedPerf}
+	oldestSupportedPerf = "mssql-perf-oldest"
+	latestSupportedPerf = "mssql-perf-latest"
+	unsupportedPerf     = "mssql-noext"
+	// This is a known issue where latest versions of Ubuntu get a fatal error with MSSQL 2017
+	// https://github.com/actions/runner-images/issues/10649#issuecomment-2380651901
+	// When testing on x86 macs or debian linux both versions can be enabled
+	// perfContainers       = []string{oldestSupportedPerf, latestSupportedPerf}
+	perfContainers       = []string{latestSupportedPerf}
 	nonPerfContainers    = []string{unsupportedPerf}
 	integrationContainer = "nri_mssql"
 

@@ -17,22 +17,22 @@ services:
       - mssql-log:/var/opt/mssql/log:rw
       - mssql-backup:/var/opt/mssql/backup:rw
   
-  mssql-perf-oldest:
-    build:
-      context: ./perf-testing/oldest_supported
-      dockerfile: Dockerfile
-    restart: always 
-    container_name: "mssql-perf-oldest"
-    environment:
-      ACCEPT_EULA: Y
-      SA_PASSWORD: secret123!
-      MSSQL_PID: Developer
-    ports:
-      - "2433:1433"
-    volumes:
-      - mssql-oldest-data:/var/opt/mssql/data:rw
-      - mssql-oldest-log:/var/opt/mssql/log:rw
-      - mssql-oldest-backup:/var/opt/mssql/backup:rw
+  # mssql-perf-oldest:
+  #   build:
+  #     context: ./perf-testing/oldest_supported
+  #     dockerfile: Dockerfile
+  #   restart: always 
+  #   container_name: "mssql-perf-oldest"
+  #   environment:
+  #     ACCEPT_EULA: Y
+  #     SA_PASSWORD: secret123!
+  #     MSSQL_PID: Developer
+  #   ports:
+  #     - "2433:1433"
+  #   volumes:
+  #     - mssql-oldest-data:/var/opt/mssql/data:rw
+  #     - mssql-oldest-log:/var/opt/mssql/log:rw
+  #     - mssql-oldest-backup:/var/opt/mssql/backup:rw
 
   mssql-no-ext:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -57,6 +57,6 @@ volumes:
   mssql-log:
   mssql-backup:
 
-  mssql-oldest-data:
-  mssql-oldest-log:
-  mssql-oldest-backup:
+  # mssql-oldest-data:
+  # mssql-oldest-log:
+  # mssql-oldest-backup:
