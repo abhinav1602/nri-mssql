@@ -1,10 +1,10 @@
 package validation
 
 import (
-	"errors"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
-	"testing"
 )
 
 func TestCheckSqlServerVersion_SupportedVersion(t *testing.T) {
@@ -64,7 +64,7 @@ func TestCheckSqlServerVersion_QueryError(t *testing.T) {
 	defer sqlConnection.Connection.Close()
 
 	// Mocking an error on querying for SQL Server version
-	mock.ExpectQuery("SELECT @@VERSION").WillReturnError(errors.New("query error"))
+	mock.ExpectQuery("SELECT @@VERSION").WillReturnError(errQueryError)
 
 	result := checkSqlServerVersion(sqlConnection)
 	assert.False(t, result)

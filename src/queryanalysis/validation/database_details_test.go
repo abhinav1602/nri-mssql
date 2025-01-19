@@ -54,11 +54,6 @@ func TestGetDatabaseDetails_Error(t *testing.T) {
 }
 
 func TestGetDatabaseDetails_UnsupportedVersion(t *testing.T) {
-	originalCheckSqlServerVersion := checkSqlServerVersion
-	defer func() { checkServerVersion = originalCheckSqlServerVersion }()
-	checkServerVersion = func(sqlConnection *connection.SQLConnection) bool {
-		return false
-	}
 	db, _, err := sqlmock.New()
 	assert.NoError(t, err)
 	defer db.Close()

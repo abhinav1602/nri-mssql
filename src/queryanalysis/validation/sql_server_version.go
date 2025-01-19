@@ -1,10 +1,11 @@
 package validation
 
 import (
+	"regexp"
+
 	"github.com/blang/semver/v4"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
-	"regexp"
 )
 
 func checkSqlServerVersion(sqlConnection *connection.SQLConnection) bool {
