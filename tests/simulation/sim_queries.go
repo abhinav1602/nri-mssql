@@ -27,14 +27,14 @@ func openDB(host string, port int, database, user, password string) (*sqlx.DB, e
 
 	db, err := sqlx.Open("sqlserver", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("cannot connect to db: %s", err)
+		return nil, fmt.Errorf("cannot connect to db: %s", err) //nolint:all
 	}
 
 	// Test connection
 	err = db.Ping()
 	if err != nil {
 		db.Close()
-		return nil, fmt.Errorf("cannot ping db: %s", err)
+		return nil, fmt.Errorf("cannot ping db: %s", err) //nolint:all
 	}
 
 	return db, nil
@@ -46,14 +46,14 @@ func SimulateScenarios(t *testing.T, port int, database, user, password string) 
 	// Create primary database connection
 	db1, err := openDB("localhost", port, database, user, password)
 	if err != nil {
-		return fmt.Errorf("failed to open first database connection: %v", err)
+		return fmt.Errorf("failed to open first database connection: %v", err) //nolint:all
 	}
 
 	// Create secondary connection for blocking sessions
 	db2, err := openDB("localhost", port, database, user, password)
 	if err != nil {
 		db1.Close()
-		return fmt.Errorf("failed to open second database connection: %v", err)
+		return fmt.Errorf("failed to open second database connection: %v", err) //nolint:all
 	}
 
 	// Execute generic queries first
@@ -62,7 +62,7 @@ func SimulateScenarios(t *testing.T, port int, database, user, password string) 
 		if _, err := db1.Exec(query); err != nil {
 			db1.Close()
 			db2.Close()
-			return fmt.Errorf("error executing generic query: %v", err)
+			return fmt.Errorf("error executing generic query: %v", err) //nolint:all
 		}
 	}
 
@@ -72,7 +72,7 @@ func SimulateScenarios(t *testing.T, port int, database, user, password string) 
 		if _, err := db1.Exec(query); err != nil {
 			db1.Close()
 			db2.Close()
-			return fmt.Errorf("error executing slow query: %v", err)
+			return fmt.Errorf("error executing slow query: %v", err) //nolint:all
 		}
 	}
 
@@ -82,7 +82,7 @@ func SimulateScenarios(t *testing.T, port int, database, user, password string) 
 		if _, err := db1.Exec(query); err != nil {
 			db1.Close()
 			db2.Close()
-			return fmt.Errorf("error executing plan query: %v", err)
+			return fmt.Errorf("error executing plan query: %v", err) //nolint:all
 		}
 	}
 
@@ -103,7 +103,7 @@ func SimulateScenarios(t *testing.T, port int, database, user, password string) 
 		// Lock a row in the first transaction
 		_, err = tx1.Exec(blockingSessionQuery)
 		if err != nil {
-			tx1.Rollback()
+			tx1.Rollback() //nolint:all
 			t.Logf("Error in first blocking query: %v", err)
 			return
 		}
@@ -118,12 +118,12 @@ func SimulateScenarios(t *testing.T, port int, database, user, password string) 
 		}()
 
 		// Hold the lock briefly
-		time.Sleep(5 * time.Second)
-		tx1.Rollback()
+		time.Sleep(5 * time.Second) //nolint:all
+		tx1.Rollback()              //nolint:all
 	}()
 
 	// Brief sleep to ensure blocking is established
-	time.Sleep(2 * time.Second)
+	time.Sleep(2 * time.Second) //nolint:all
 	return nil
 }
 
@@ -235,18 +235,6 @@ var planQueries = []string{
      GROUP BY p.ProductID, p.Name
      HAVING COUNT(*) > 10`,
 }
-
-// Query to create wait events
-var waitEventQuery = `
-    UPDATE SalesLT.Product 
-    SET ListPrice = ListPrice * 1.1 
-    WHERE ProductID = (
-        SELECT TOP 1 ProductID 
-        FROM SalesLT.Product 
-        WHERE ListPrice > 0
-        ORDER BY ModifiedDate DESC
-    )
-`
 
 // Query to create blocking sessions
 var blockingSessionQuery = `
