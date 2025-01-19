@@ -9,10 +9,6 @@ import (
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
-var checkServerVersion = func(sqlConnection *connection.SQLConnection) bool {
-	return true
-}
-
 func TestGetDatabaseDetails(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
