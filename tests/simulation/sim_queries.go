@@ -40,6 +40,7 @@ func openDB(host string, port int, database, user, password string) (*sqlx.DB, e
 	return db, nil
 }
 
+//nolint:gocyclo
 func SimulateScenarios(t *testing.T, port int, database, user, password string) error {
 	t.Helper()
 
