@@ -8,7 +8,7 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
 )
 
-func checkSqlServerVersion(sqlConnection *connection.SQLConnection) bool {
+func checkSQLServerVersion(sqlConnection *connection.SQLConnection) bool {
 
 	rows, err := sqlConnection.Queryx("SELECT @@VERSION\n")
 	if err != nil {
