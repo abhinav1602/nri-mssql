@@ -72,4 +72,70 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 			log.Error("Failed after retries: %s", err)
 		}
 	}
+
+	//var allCustomQueryResults []models.CustomQueryResults
+	//
+	//// Create a channel to gather the results from each goroutine safely
+	//resultsChannel := make(chan models.CustomQueryResults)
+	//
+	//// Use a WaitGroup to ensure all goroutines finish before moving on
+	//var wg sync.WaitGroup
+	//
+	//for _, queryDetailsDto := range queryDetails {
+	//	wg.Add(1)
+	//
+	//	// Launch a goroutine to handle each query execution
+	//	go func(queryDetailsDto models.QueryDetailsDto) {
+	//		defer wg.Done()
+	//
+	//		err := retryMechanism.Retry(func() error {
+	//			executeAndBindModelTxn := app.StartTransaction("ExecuteQueriesAndBindModels")
+	//			queryResults, err := utils.ExecuteQuery(arguments, queryDetailsDto, integration, sqlConnection, executeAndBindModelTxn)
+	//			if err != nil {
+	//				log.Error("Failed to execute query: %s", err)
+	//				executeAndBindModelTxn.End()
+	//				return err
+	//			}
+	//			executeAndBindModelTxn.End()
+	//
+	//			var customQueryResults models.CustomQueryResults
+	//			customQueryResults.QueryDetailsDto = queryDetailsDto
+	//			customQueryResults.Result = queryResults
+	//
+	//			// Send the results to the channel
+	//			resultsChannel <- customQueryResults
+	//
+	//			return nil
+	//		})
+	//
+	//		if err != nil {
+	//			log.Error("Failed after retries: %s", err)
+	//		}
+	//	}(queryDetailsDto)
+	//}
+	//
+	//// Goroutine to close the resultsChannel once all queries are completed
+	//go func() {
+	//	wg.Wait()
+	//	close(resultsChannel)
+	//}()
+	//
+	//// Collect all results from the resultsChannel
+	//for result := range resultsChannel {
+	//	allCustomQueryResults = append(allCustomQueryResults, result)
+	//}
+	//
+	//
+	//for _, customQueryResults := range allCustomQueryResults {
+	//	dataInjestionTxn := app.StartTransaction("IngestDataInBatches")
+	//	err = utils.IngestQueryMetricsInBatches(customQueryResults.Result, customQueryResults.QueryDetailsDto, integration, sqlConnection)
+	//	if err != nil {
+	//		log.Error("Failed to ingest metrics: %s", err)
+	//		dataInjestionTxn.End()
+	//	}
+	//	dataInjestionTxn.End()
+	//}
+
+	defer sqlConnection.Close()
+
 }

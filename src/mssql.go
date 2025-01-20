@@ -31,34 +31,6 @@ var (
 
 func main() {
 
-	// Create an Application:
-	app, err := newrelic.NewApplication(
-		// Name your application
-		newrelic.ConfigAppName("mssql-perf-old-instance"),
-		// Fill in your New Relic license key
-		newrelic.ConfigLicense("84529bfd2aacf045f62ac168282ef8b2FFFFNRAL"),
-		// Add logging:
-		newrelic.ConfigDebugLogger(os.Stdout),
-		// Optional: add additional changes to your configuration via a config function:
-		func(cfg *newrelic.Config) {
-			cfg.CustomInsightsEvents.Enabled = true
-		},
-	)
-	// If an application could not be created then err will reveal why.
-	if err != nil {
-		log.Debug("unable to create New Relic Application", err)
-		return
-	}
-	defer app.Shutdown(10 * time.Second) // Use the app variable
-
-	// Ensure the application is connected
-	if err := app.WaitForConnection(10 * time.Second); err != nil {
-		log.Debug("New Relic Application did not connect:", err)
-		return
-	}
-
-	totalNriMsSqlExecutionTime := app.StartTransaction("TotalNriMsSqlExecutionTime")
-
 	var args args.ArgumentList
 	// Create Integration
 	i, err := integration.New(integrationName, integrationVersion, integration.Args(&args))
@@ -87,6 +59,37 @@ func main() {
 		log.Error("Configuration error: %s", err)
 		os.Exit(1)
 	}
+
+	// Create an Application:
+	app, err := newrelic.NewApplication(
+		// Name your application
+		newrelic.ConfigAppName(args.Goagentname),
+		// Fill in your New Relic license key
+		newrelic.ConfigLicense(args.Licencekey),
+		// Add logging:
+		newrelic.ConfigDebugLogger(os.Stdout),
+		// Optional: add additional changes to your configuration via a config function:
+		func(cfg *newrelic.Config) {
+			cfg.CustomInsightsEvents.Enabled = true
+		},
+	)
+	fmt.Println("comes")
+	// If an application could not be created then err will reveal why.
+	if err != nil {
+		log.Debug("unable to create New Relic Application", err)
+		return
+	}
+	defer app.Shutdown(10 * time.Second) // Use the app variable
+
+	// Ensure the application is connected
+	if err := app.WaitForConnection(10 * time.Second); err != nil {
+		log.Debug("New Relic Application did not connect:", err)
+		return
+	}
+
+	fmt.Println("starts")
+
+	totalNriMsSqlExecutionTime := app.StartTransaction("TotalNriMsSqlExecutionTime")
 
 	// Create a new connection
 	con, err := connection.NewConnection(&args)
