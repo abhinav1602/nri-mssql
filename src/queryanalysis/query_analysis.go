@@ -73,6 +73,7 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 		}
 	}
 
+	//
 	//var allCustomQueryResults []models.CustomQueryResults
 	//
 	//// Create a channel to gather the results from each goroutine safely
