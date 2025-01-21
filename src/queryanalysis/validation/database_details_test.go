@@ -17,8 +17,6 @@ func TestGetDatabaseDetails(t *testing.T) {
 	assert.NoError(t, err)
 	defer db.Close()
 	sqlConnection := &connection.SQLConnection{Connection: sqlx.NewDb(db, "sqlmock")}
-
-	// Define the expected rows
 	rows := sqlmock.NewRows([]string{"database_id", "name", "compatibility_level", "is_query_store_on"}).
 		AddRow(100, "testdb1", 100, true).
 		AddRow(101, "testdb2", 110, false).
@@ -50,4 +48,14 @@ func TestGetDatabaseDetails_Error(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, databaseDetails)
 	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetDatabaseDetails_UnsupportedVersion(t *testing.T) {
+	db, _, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+	sqlConnection := &connection.SQLConnection{Connection: sqlx.NewDb(db, "sqlmock")}
+	databaseDetails, err := GetDatabaseDetails(sqlConnection)
+	assert.Nil(t, err)
+	assert.Nil(t, databaseDetails)
 }
