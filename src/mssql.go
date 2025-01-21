@@ -94,7 +94,7 @@ func main() {
 		return
 	}
 
-	if args.EnableQueryPerformance {
+	if args.EnableQueryMonitoring {
 		queryanalysis.QueryPerformanceMain(i, args)
 	}
 }
