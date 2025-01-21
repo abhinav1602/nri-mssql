@@ -41,7 +41,7 @@ integrations:
     # The no of records for each metric in a interval (max of slow queries can be 20 and for execution plan metrics it can be 30)
     # QUERY_COUNT_THRESHOLD : "20"
     # Interval in seconds for fetching grouped slow queries; Should always be same as mysql-config interval.
-    # FETCH_INTERVAL : "15s"
+    # FETCH_INTERVAL : "15"
   interval: 15s
   labels:
     env: production
