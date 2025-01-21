@@ -17,6 +17,9 @@ services:
       - mssql-log:/var/opt/mssql/log:rw
       - mssql-backup:/var/opt/mssql/backup:rw
   
+  # This is a known issue where latest versions of Ubuntu get a fatal error with MSSQL 2017
+	# https://github.com/actions/runner-images/issues/10649#issuecomment-2380651901
+	# When testing on x86 macs or debian linux mssql-perf-oldest can be enabled
   # mssql-perf-oldest:
   #   build:
   #     context: ./perf-testing/oldest_supported
@@ -50,13 +53,14 @@ services:
     container_name: nri_mssql
     build:
       context: ../
-      dockerfile: tests/perf-testing/integration/Dockerfile
+      dockerfile: ./tests/Dockerfile
 
 volumes:
   mssql-data:
   mssql-log:
   mssql-backup:
 
+  # Volumes for MSSQL Server 2017 can be enabled when testing on an OS that supports MSSQL 2017
   # mssql-oldest-data:
   # mssql-oldest-log:
   # mssql-oldest-backup:

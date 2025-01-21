@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -31,6 +32,7 @@ var (
 	perfContainers       = []string{latestSupportedPerf}
 	nonPerfContainers    = []string{unsupportedPerf}
 	integrationContainer = "nri_mssql"
+	querySimCount        = 3
 
 	defaultBinPath = "/nri-mssql"
 	defaultUser    = "sa"         // Default MSSQL admin user
@@ -45,6 +47,17 @@ var (
 	psw        = flag.String("psw", defaultPass, "MSSQL user password")
 	port       = flag.Int("port", defaultPort, "MSSQL port")
 	database   = flag.String("database", defaultDB, "MSSQL database")
+
+	allSampleTypes = []string{
+		"MssqlInstanceSample",
+		"MSSQLQueryExecutionPlans",
+		"MSSQLTopSlowQueries",
+		"MSSQLWaitTimeAnalysis",
+		"MSSQLBlockingSessionQueries",
+	}
+	instanceSampleOnly = []string{
+		"MssqlInstanceSample",
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -55,49 +68,41 @@ func TestMain(m *testing.M) {
 
 func TestIntegrationSupportedDatabase(t *testing.T) {
 	tests := []struct {
-		name       string
-		containers []string
-		args       []string
-		minCount   int
+		name                string
+		containers          []string
+		args                []string
+		expectedSampleTypes []string
 	}{
 		{
-			name:       "Perf metrics on supported database with perf enabled",
-			containers: perfContainers,
-			args:       []string{`-enable_query_performance=true`},
-			minCount:   5,
+			name:                "Perf metrics on supported database with perf enabled",
+			containers:          perfContainers,
+			args:                []string{`-enable_query_monitoring=true`},
+			expectedSampleTypes: allSampleTypes,
 		},
 		{
-			name:       "Perf metrics on supported database with perf enabled and custom parameters",
-			containers: perfContainers,
-			args:       []string{`-enable_query_performance=true`, `-query_response_time_threshold=500`},
-			minCount:   3,
+			name:                "Perf metrics on supported database with perf enabled and custom parameters",
+			containers:          perfContainers,
+			args:                []string{`-enable_query_monitoring=true`, `-query_response_time_threshold=2000`},
+			expectedSampleTypes: allSampleTypes,
 		},
 		{
-			name:       "Perf metrics on supported database with perf enabled and more custom parameters",
-			containers: perfContainers,
-			args:       []string{`-enable_query_performance=true`, `-query_response_time_threshold=1000`, `fetch_interval=5`, `-query_count_threshold=10`},
-			minCount:   1,
+			name:                "Perf metrics on supported database with perf enabled and more custom parameters",
+			containers:          perfContainers,
+			args:                []string{`-enable_query_monitoring=true`, `-query_response_time_threshold=10000`, `fetch_interval=5`, `-query_count_threshold=10`},
+			expectedSampleTypes: []string{"MssqlInstanceSample", "MSSQLWaitTimeAnalysis", "MSSQLBlockingSessionQueries"},
 		},
 		{
-			name:       "Perf metrics on supported database with perf disabled",
-			containers: perfContainers,
-			args:       []string{`-enable_query_performance=false`},
-			minCount:   1,
+			name:                "Perf metrics on supported database with perf disabled",
+			containers:          perfContainers,
+			args:                []string{`-enable_query_monitoring=false`},
+			expectedSampleTypes: instanceSampleOnly,
 		},
 		{
-			name:       "Perf metrics on supported database with perf disabled and more custom parameters",
-			containers: perfContainers,
-			args:       []string{`-enable_query_performance=false`, `-query_response_time_threshold=500`, `fetch_interval=5`, `-query_count_threshold=10`},
-			minCount:   1,
+			name:                "Perf metrics on supported database with perf disabled and more custom parameters",
+			containers:          perfContainers,
+			args:                []string{`-enable_query_monitoring=false`, `-query_response_time_threshold=500`, `fetch_interval=5`, `-query_count_threshold=10`},
+			expectedSampleTypes: instanceSampleOnly,
 		},
-	}
-
-	sampleTypes := []string{
-		"MssqlInstanceSample",
-		"MSSQLQueryExecutionPlans",
-		"MSSQLTopSlowQueries",
-		"MSSQLWaitTimeAnalysis",
-		"MSSQLBlockingSessionQueries",
 	}
 
 	for _, tt := range tests {
@@ -105,52 +110,74 @@ func TestIntegrationSupportedDatabase(t *testing.T) {
 			for _, container := range tt.containers {
 				t.Run(container, func(t *testing.T) {
 
-					containerPort, containerDB := getPortAndDbForContainer(container)
-					err := simulation.SimulateScenarios(t, containerPort, containerDB, *user, *psw)
-					require.NoError(t, err, "Failed to simulate scenarios")
+					runQueries(t, container)
 
 					stdout := runIntegration(t, container, tt.args...)
 
 					samples := strings.Split(stdout, "\n")
-					count := 0
+					foundSampleTypes := make(map[string]bool)
 
 					for _, sample := range samples {
 						sample = strings.TrimSpace(sample)
-						// fmt.Println(sample)
 						if sample == "" {
 							continue
 						}
 
-						// Validate JSON format
-						var j map[string]interface{}
-						err := json.Unmarshal([]byte(sample), &j)
-						require.NoError(t, err, "Sample is not valid JSON")
+						sampleType := getSampleType(sample, allSampleTypes)
+						require.NotEmpty(t, sampleType, "No sample type found in JSON output: %s", sample)
+						foundSampleTypes[sampleType] = true
 
-						var foundType string
-						for _, sType := range sampleTypes {
-							if strings.Contains(sample, sType) {
-								foundType = sType
-								break
-							}
-						}
-
-						require.NotEmpty(t, foundType, "Sample type not found in JSON output")
-
-						t.Run(fmt.Sprintf("Validating JSON schema for sample: %s", foundType), func(t *testing.T) {
-							// Get corresponding schema file
-							schemaFile := getSchemaFileName(foundType)
-							require.NotEmpty(t, schemaFile, "Schema file not found for sample type: %s", foundType)
-
-							// Validate against schema
-							err = validateJSONSchema(schemaFile, sample)
-							assert.NoError(t, err, "Sample failed schema validation for type: %s", foundType)
-						})
-						count++
+						validateSample(t, sample, sampleType)
 					}
-					assert.GreaterOrEqual(t, count, tt.minCount, "Number of valid samples found (%d) is not greater than minimum expected count (%d)", count, tt.minCount)
+
+					verifySampleTypes(t, tt.expectedSampleTypes, foundSampleTypes)
 				})
 			}
 		})
+	}
+}
+
+func runQueries(t *testing.T, container string) {
+	t.Helper()
+	containerPort, containerDB := getPortAndDbForContainer(container)
+	for i := 0; i < querySimCount; i++ {
+		err := simulation.SimulateDBQueries(t, containerPort, containerDB, *user, *psw)
+		require.NoError(t, err, "Failed to simulate database queries")
+	}
+}
+
+func validateSample(t *testing.T, sample string, sampleType string) {
+	t.Helper()
+	// Validate JSON format
+	var j map[string]interface{}
+	err := json.Unmarshal([]byte(sample), &j)
+	require.NoError(t, err, "Got an invalid JSON as output: %s", sample)
+
+	// Validate schema
+	t.Run(fmt.Sprintf("Validating JSON schema for sample: %s", sampleType), func(t *testing.T) {
+		schemaFile := getSchemaFileName(sampleType)
+		require.NotEmpty(t, schemaFile, "Schema file not found for sample type: %s", sampleType)
+
+		err = validateJSONSchema(schemaFile, sample)
+		assert.NoError(t, err, "Sample failed schema validation for type: %s", sampleType)
+	})
+}
+
+func verifySampleTypes(t *testing.T, expectedTypes []string, foundTypes map[string]bool) {
+	t.Helper()
+
+	// Check that all expected sample types were found
+	for _, sampleType := range allSampleTypes {
+		if slices.Contains(expectedTypes, sampleType) {
+			assert.True(t, foundTypes[sampleType],
+				"Expected sample type %s was not found in the output", sampleType)
+		}
+	}
+
+	// Check that no unexpected sample types were found
+	for foundType := range foundTypes {
+		assert.True(t, slices.Contains(expectedTypes, foundType),
+			"Found unexpected sample type %s in the output", foundType)
 	}
 }
 
@@ -163,12 +190,12 @@ func TestIntegrationUnsupportedDatabase(t *testing.T) {
 		{
 			name:       "Performance metrics collection with unsupported database with perf enabled",
 			containers: nonPerfContainers,
-			args:       []string{`-enable_query_performance=true`},
+			args:       []string{`-enable_query_monitoring=true`},
 		},
 		{
 			name:       "Performance metrics collection with unsupported database with perf disabled",
 			containers: nonPerfContainers,
-			args:       []string{`-enable_query_performance=false`},
+			args:       []string{`-enable_query_monitoring=false`},
 		},
 	}
 
@@ -209,6 +236,26 @@ func getPortAndDbForContainer(container string) (int, string) {
 	default:
 		return 1433, "master"
 	}
+}
+
+func getSchemaFileName(sampleType string) string {
+	schemaMap := map[string]string{
+		"MssqlInstanceSample":         "mssql-schema.json",
+		"MSSQLQueryExecutionPlans":    "execution-plan-schema.json",
+		"MSSQLTopSlowQueries":         "slow-queries-schema.json",
+		"MSSQLWaitTimeAnalysis":       "wait-events-schema.json",
+		"MSSQLBlockingSessionQueries": "blocking-sessions-schema.json",
+	}
+	return schemaMap[sampleType]
+}
+
+func getSampleType(sample string, sampleTypes []string) string {
+	for _, sType := range sampleTypes {
+		if strings.Contains(sample, sType) {
+			return sType
+		}
+	}
+	return ""
 }
 
 func ExecInContainer(container string, command []string, envVars ...string) (string, string, error) {
@@ -274,17 +321,6 @@ func runIntegration(t *testing.T, targetContainer string, integration_args ...st
 	require.NoError(t, err)
 
 	return stdout
-}
-
-func getSchemaFileName(sampleType string) string {
-	schemaMap := map[string]string{
-		"MssqlInstanceSample":         "mssql-schema.json",
-		"MSSQLQueryExecutionPlans":    "execution-plan-schema.json",
-		"MSSQLTopSlowQueries":         "slow-queries-schema.json",
-		"MSSQLWaitTimeAnalysis":       "wait-events-schema.json",
-		"MSSQLBlockingSessionQueries": "blocking-sessions-schema.json",
-	}
-	return schemaMap[sampleType]
 }
 
 func validateJSONSchema(fileName string, input string) error {

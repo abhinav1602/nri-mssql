@@ -41,7 +41,7 @@ func openDB(host string, port int, database, user, password string) (*sqlx.DB, e
 }
 
 //nolint:gocyclo
-func SimulateScenarios(t *testing.T, port int, database, user, password string) error {
+func SimulateDBQueries(t *testing.T, port int, database, user, password string) error {
 	t.Helper()
 
 	// Create primary database connection
@@ -57,8 +57,9 @@ func SimulateScenarios(t *testing.T, port int, database, user, password string) 
 		return fmt.Errorf("failed to open second database connection: %v", err) //nolint:all
 	}
 
+	t.Log("Executing simulation queries...")
+
 	// Execute generic queries first
-	t.Log("Executing generic queries...")
 	for _, query := range genericQueries {
 		if _, err := db1.Exec(query); err != nil {
 			db1.Close()
@@ -68,7 +69,6 @@ func SimulateScenarios(t *testing.T, port int, database, user, password string) 
 	}
 
 	// Simulate slow queries
-	t.Log("Simulating slow queries...")
 	for _, query := range slowQueries {
 		if _, err := db1.Exec(query); err != nil {
 			db1.Close()
@@ -78,7 +78,6 @@ func SimulateScenarios(t *testing.T, port int, database, user, password string) 
 	}
 
 	// Simulate query plans
-	t.Log("Simulating query plans...")
 	for _, query := range planQueries {
 		if _, err := db1.Exec(query); err != nil {
 			db1.Close()
@@ -91,8 +90,6 @@ func SimulateScenarios(t *testing.T, port int, database, user, password string) 
 	go func() {
 		defer db1.Close()
 		defer db2.Close()
-
-		t.Log("Simulating blocking sessions...")
 
 		// Start first transaction
 		tx1, err := db1.Begin()
@@ -124,7 +121,7 @@ func SimulateScenarios(t *testing.T, port int, database, user, password string) 
 	}()
 
 	// Brief sleep to ensure blocking is established
-	time.Sleep(2 * time.Second) //nolint:all
+	// time.Sleep(2 * time.Second) //nolint:all
 	return nil
 }
 

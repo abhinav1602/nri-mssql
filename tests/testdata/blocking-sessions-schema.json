@@ -101,7 +101,6 @@
                   },
                   "CommandType": {
                     "type": "string",
-                    "enum": ["SELECT", "UPDATE", "INSERT", "DELETE"],
                     "description": "Type of SQL command"
                   },
                   "DatabaseName": {
