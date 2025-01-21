@@ -24,6 +24,7 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 	isPreconditionPassed := validation.ValidatePreConditions(sqlConnection)
 	if !isPreconditionPassed {
 		log.Error("Error validating preconditions")
+		defer sqlConnection.Close()
 		return
 	}
 
@@ -51,6 +52,8 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 			log.Error("Failed after retries: %s", err)
 		}
 	}
+
+	defer sqlConnection.Close()
 	log.Debug("Query analysis completed")
 
 }
