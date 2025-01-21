@@ -93,10 +93,6 @@ func main() {
 		log.Error(err.Error())
 		return
 	}
-<<<<<<< HEAD
-=======
-	i.Clear()
->>>>>>> d74d91e (feature: Advanced Query Monitoring (#16))
 
 	if args.EnableQueryPerformance {
 		queryanalysis.QueryPerformanceMain(i, args)

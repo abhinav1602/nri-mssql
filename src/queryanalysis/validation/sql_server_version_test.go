@@ -43,6 +43,7 @@ func TestCheckSqlServerVersion_EmptyVersion(t *testing.T) {
 	assert.False(t, result)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
+
 func TestCheckSqlServerVersion_InvalidVersionString(t *testing.T) {
 	sqlConnection, mock := setupMockDB(t)
 	defer sqlConnection.Connection.Close()
