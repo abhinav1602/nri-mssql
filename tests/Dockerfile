@@ -1,4 +1,4 @@
-# Dockerfile to setup MSSQL binary in a container
+# Dockerfile to setup nri-mssql binary in a container
 
 FROM golang:1.23.4-bookworm AS builder
 ARG CGO_ENABLED=0
