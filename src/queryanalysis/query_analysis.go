@@ -33,6 +33,7 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 	queryDetails, err := utils.LoadQueries(arguments)
 	if err != nil {
 		log.Error("Error loading query configuration: %v", err)
+		defer sqlConnection.Close()
 		return
 	}
 
@@ -46,10 +47,6 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 		if err != nil {
 			log.Error("Failed to ingest metrics: %s", err)
 			continue
-		}
-
-		if err != nil {
-			log.Error("Failed after retries: %s", err)
 		}
 	}
 
