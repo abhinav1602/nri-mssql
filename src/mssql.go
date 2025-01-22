@@ -95,6 +95,6 @@ func main() {
 	}
 
 	if args.EnableQueryMonitoring {
-		queryanalysis.QueryPerformanceMain(i, args)
+		queryanalysis.PopulateQueryPerformanceMetrics(i, args)
 	}
 }
