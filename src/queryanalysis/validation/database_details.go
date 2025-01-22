@@ -36,6 +36,5 @@ func GetDatabaseDetails(sqlConnection *connection.SQLConnection) ([]models.Datab
 			databaseDetailsResults = append(databaseDetailsResults, model)
 		}
 	}
-
 	return databaseDetailsResults, nil
 }
