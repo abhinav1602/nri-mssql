@@ -19,12 +19,12 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 		log.Error("Error creating connection to SQL Server: %s", err.Error())
 		return
 	}
+	defer sqlConnection.Close()
 
 	// Validate preconditions
 	isPreconditionPassed := validation.ValidatePreConditions(sqlConnection)
 	if !isPreconditionPassed {
 		log.Error("Error validating preconditions")
-		defer sqlConnection.Close()
 		return
 	}
 
@@ -33,7 +33,6 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 	queryDetails, err := utils.LoadQueries(arguments)
 	if err != nil {
 		log.Error("Error loading query configuration: %v", err)
-		defer sqlConnection.Close()
 		return
 	}
 
@@ -50,7 +49,6 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 		}
 	}
 
-	defer sqlConnection.Close()
 	log.Debug("Query analysis completed")
 
 }
