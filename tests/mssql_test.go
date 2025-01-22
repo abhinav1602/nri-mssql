@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 
@@ -125,12 +124,14 @@ func TestIntegrationSupportedDatabase(t *testing.T) {
 
 						sampleType := getSampleType(sample, allSampleTypes)
 						require.NotEmpty(t, sampleType, "No sample type found in JSON output: %s", sample)
+						require.Contains(t, tt.expectedSampleTypes, sampleType, "Found unexpected sample type %q", sampleType)
 						foundSampleTypes[sampleType] = true
 
 						validateSample(t, sample, sampleType)
 					}
+					samplesFound := getFoundSampleTypes(foundSampleTypes)
+					require.ElementsMatch(t, tt.expectedSampleTypes, samplesFound, "Not all expected sample types where found expected %v, found %v", tt.expectedSampleTypes, samplesFound)
 
-					verifySampleTypes(t, tt.expectedSampleTypes, foundSampleTypes)
 				})
 			}
 		})
@@ -161,24 +162,6 @@ func validateSample(t *testing.T, sample string, sampleType string) {
 		err = validateJSONSchema(schemaFile, sample)
 		assert.NoError(t, err, "Sample failed schema validation for type: %s", sampleType)
 	})
-}
-
-func verifySampleTypes(t *testing.T, expectedTypes []string, foundTypes map[string]bool) {
-	t.Helper()
-
-	// Check that all expected sample types were found
-	for _, sampleType := range allSampleTypes {
-		if slices.Contains(expectedTypes, sampleType) {
-			assert.True(t, foundTypes[sampleType],
-				"Expected sample type %s was not found in the output", sampleType)
-		}
-	}
-
-	// Check that no unexpected sample types were found
-	for foundType := range foundTypes {
-		assert.True(t, slices.Contains(expectedTypes, foundType),
-			"Found unexpected sample type %s in the output", foundType)
-	}
 }
 
 func TestIntegrationUnsupportedDatabase(t *testing.T) {
@@ -247,6 +230,14 @@ func getSchemaFileName(sampleType string) string {
 		"MSSQLBlockingSessionQueries": "blocking-sessions-schema.json",
 	}
 	return schemaMap[sampleType]
+}
+
+func getFoundSampleTypes(foundSampleTypes map[string]bool) []string {
+	foundSampleTypesKeys := make([]string, 0)
+	for key, _ := range foundSampleTypes {
+		foundSampleTypesKeys = append(foundSampleTypesKeys, key)
+	}
+	return foundSampleTypesKeys
 }
 
 func getSampleType(sample string, sampleTypes []string) string {
