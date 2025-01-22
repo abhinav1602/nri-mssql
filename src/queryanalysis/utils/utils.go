@@ -257,11 +257,14 @@ func ValidateAndSetDefaults(args *args.ArgumentList) {
 	// Since EnableQueryMonitoring is a boolean, no need to reset as it can't be invalid in this context
 	if args.QueryResponseTimeThreshold < 0 {
 		args.QueryResponseTimeThreshold = config.QueryResponseTimeThresholdDefault
+		log.Info("Query response time threshold is negative, setting to default value: %d", config.QueryResponseTimeThresholdDefault)
 	}
 
 	if args.QueryCountThreshold < 0 {
 		args.QueryCountThreshold = config.SlowQueryCountThresholdDefault
+		log.Info("Query count threshold is negative, setting to default value: %d", config.SlowQueryCountThresholdDefault)
 	} else if args.QueryCountThreshold >= config.GroupedQueryCountMax {
 		args.QueryCountThreshold = config.GroupedQueryCountMax
+		log.Info("Query count threshold is greater than max supported value, setting to max supported value: %d", config.GroupedQueryCountMax)
 	}
 }
