@@ -22,8 +22,6 @@ type SQLConnection struct {
 // NewConnection creates a new SQLConnection from args
 func NewConnection(args *args.ArgumentList) (*SQLConnection, error) {
 	db, err := sqlx.Connect("mssql", CreateConnectionURL(args))
-	db.SetMaxIdleConns(5)
-	db.SetMaxOpenConns(10)
 	if err != nil {
 		return nil, err
 	}
