@@ -111,7 +111,8 @@ func BindQueryResults(arguments args.ArgumentList,
 func GenerateAndIngestExecutionPlan(arguments args.ArgumentList,
 	integration *integration.Integration,
 	sqlConnection *connection.SQLConnection,
-	queryID models.HexString) {
+	queryID models.HexString,
+) {
 	hexQueryID := string(queryID)
 	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, min(config.IndividualQueryCountMax, arguments.QueryCountThreshold),
 		arguments.QueryResponseTimeThreshold, hexQueryID, arguments.FetchInterval, config.TextTruncateLimit)
@@ -151,7 +152,8 @@ func GenerateAndIngestExecutionPlan(arguments args.ArgumentList,
 func IngestQueryMetricsInBatches(results []interface{},
 	queryDetailsDto models.QueryDetailsDto,
 	integration *integration.Integration,
-	sqlConnection *connection.SQLConnection) error {
+	sqlConnection *connection.SQLConnection,
+) error {
 	const batchSize = 100 // New Relic's Integration SDK imposes a limit of 1000 metrics per ingestion.To handle metric sets exceeding this limit, we process and ingest metrics in smaller chunks to ensure all data is successfully reported without exceeding the limit.
 
 	for start := 0; start < len(results); start += batchSize {
@@ -233,8 +235,6 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 	if err != nil {
 		return err
 	}
-	integration.Clear()
-
 	return nil
 }
 
