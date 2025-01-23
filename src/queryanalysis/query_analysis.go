@@ -57,5 +57,4 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 		}
 	}
 	log.Debug("Query analysis completed")
-
 }
