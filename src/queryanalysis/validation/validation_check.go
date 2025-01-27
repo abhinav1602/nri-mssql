@@ -18,7 +18,7 @@ func ValidatePreConditions(sqlConnection *connection.SQLConnection) bool {
 		return false
 	}
 
-	if !checkDatabaseCompatibility(databaseDetails) || !checkQueryStores(databaseDetails) {
+	if !checkDatabaseCompatibility(databaseDetails) || !queryStoresAreEnabledForAnyDB(databaseDetails) {
 		return false
 	}
 
@@ -69,7 +69,7 @@ func checkPermissionsAndLogin(sqlConnection *connection.SQLConnection) bool {
 	return true
 }
 
-func checkQueryStores(databaseDetails []models.DatabaseDetailsDto) bool {
+func queryStoresAreEnabledForAnyDB(databaseDetails []models.DatabaseDetailsDto) bool {
 	allQueryStoresOff := true
 	for _, database := range databaseDetails {
 		if database.IsQueryStoreOn {
