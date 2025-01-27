@@ -31,19 +31,6 @@ var (
 
 func main() {
 
-	// Create an Application:
-	app, err := newrelic.NewApplication(
-		// Name your application
-		newrelic.ConfigAppName("mssql-perf-old-instance"),
-		// Fill in your New Relic license key
-		newrelic.ConfigLicense("84529bfd2aacf045f62ac168282ef8b2FFFFNRAL"),
-		// Add logging:
-		newrelic.ConfigDebugLogger(os.Stdout),
-		// Optional: add additional changes to your configuration via a config function:
-		func(cfg *newrelic.Config) {
-			cfg.CustomInsightsEvents.Enabled = true
-		},
-	)
 	// If an application could not be created then err will reveal why.
 	if err != nil {
 		log.Debug("unable to create New Relic Application", err)
@@ -66,6 +53,20 @@ func main() {
 		log.Error(err.Error())
 		os.Exit(1)
 	}
+
+	// Create an Application:
+	app, err := newrelic.NewApplication(
+		// Name your application
+		newrelic.ConfigAppName(args.APPLICATION_NAME),
+		// Fill in your New Relic license key
+		newrelic.ConfigLicense(args.YOUR_LICENSE_KEY),
+		// Add logging:
+		newrelic.ConfigDebugLogger(os.Stdout),
+		// Optional: add additional changes to your configuration via a config function:
+		func(cfg *newrelic.Config) {
+			cfg.CustomInsightsEvents.Enabled = true
+		},
+	)
 
 	if args.ShowVersion {
 		fmt.Printf(

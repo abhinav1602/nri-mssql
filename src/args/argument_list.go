@@ -32,6 +32,8 @@ type ArgumentList struct {
 	QueryResponseTimeThreshold   int    `default:"0" help:"Threshold in milliseconds for query response time. If response time exceeds this threshold, the query will be considered slow."`
 	QueryCountThreshold          int    `default:"20" help:"Maximum number of queries returned in query analysis results."`
 	FetchInterval                int    `default:"15" help:"Interval in seconds for fetching grouped slow queries; Should always be same as mysql-config interval."`
+	YOUR_LICENSE_KEY             string `default:"84529bfd2aacf045f62ac168282ef8b2FFFFNRAL" help:"Your New Relic license key. Default is for IO Demo account"`
+	APPLICATION_NAME             string `default:"mssql-perf-old-instance" help:"The name of the application to report to New Relic"`
 }
 
 // Validate validates SQL specific arguments
