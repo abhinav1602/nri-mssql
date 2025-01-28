@@ -6,17 +6,16 @@ import (
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
-	"github.com/newrelic/nri-mssql/src/queryanalysis"
-	"os"
-	"runtime"
-	"strings"
-	"time"
-
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/instance"
 	"github.com/newrelic/nri-mssql/src/inventory"
 	"github.com/newrelic/nri-mssql/src/metrics"
+	"github.com/newrelic/nri-mssql/src/queryanalysis"
+	"os"
+	"runtime"
+	"strings"
+	"time"
 )
 
 const (
@@ -30,22 +29,6 @@ var (
 )
 
 func main() {
-
-	// If an application could not be created then err will reveal why.
-	if err != nil {
-		log.Debug("unable to create New Relic Application", err)
-		return
-	}
-	defer app.Shutdown(10 * time.Second) // Use the app variable
-
-	// Ensure the application is connected
-	if err := app.WaitForConnection(10 * time.Second); err != nil {
-		log.Debug("New Relic Application did not connect:", err)
-		return
-	}
-
-	totalNriMsSqlExecutionTime := app.StartTransaction("TotalNriMsSqlExecutionTime")
-
 	var args args.ArgumentList
 	// Create Integration
 	i, err := integration.New(integrationName, integrationVersion, integration.Args(&args))
@@ -67,6 +50,21 @@ func main() {
 			cfg.CustomInsightsEvents.Enabled = true
 		},
 	)
+
+	// If an application could not be created then err will reveal why.
+	if err != nil {
+		log.Debug("unable to create New Relic Application", err)
+		return
+	}
+	defer app.Shutdown(10 * time.Second) // Use the app variable
+
+	// Ensure the application is connected
+	if err := app.WaitForConnection(10 * time.Second); err != nil {
+		log.Debug("New Relic Application did not connect:", err)
+		return
+	}
+
+	totalNriMsSqlExecutionTime := app.StartTransaction("TotalNriMsSqlExecutionTime")
 
 	if args.ShowVersion {
 		fmt.Printf(
@@ -127,7 +125,7 @@ func main() {
 
 	if args.EnableQueryPerformance {
 		totalNriMsSqlQueryPerformanceExecutionTime := app.StartTransaction("TotalNriMsSqlQueryPerformanceExecutionTime")
-		queryanalysis.QueryPerformanceMain(i, args, app)
+		queryanalysis.PopulateQueryPerformanceMetrics(i, args, app)
 		totalNriMsSqlQueryPerformanceExecutionTime.End()
 	}
 

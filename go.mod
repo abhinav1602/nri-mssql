@@ -4,7 +4,6 @@ go 1.23.4
 
 require (
 	github.com/blang/semver/v4 v4.0.0
-	github.com/denisenkom/go-mssqldb v0.12.3
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/microsoft/go-mssqldb v1.8.0
 	github.com/newrelic/go-agent/v3 v3.35.1
