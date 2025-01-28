@@ -67,6 +67,9 @@ func TestCheckSqlServerVersion_QueryError(t *testing.T) {
 func TestGetSQLServerVersion(t *testing.T) {
 	version, err := parseSQLServerVersion("Microsoft SQL Server 2019 (RTM) - 15.0.2000.5")
 	assert.NoError(t, err)
+	if version.Major > uint64(^uint(0)>>1) {
+		t.Fatalf("version.Major value %d is too large to convert to int", version.Major)
+	}
 	assert.Equal(t, 15, int(version.Major))
 }
 
