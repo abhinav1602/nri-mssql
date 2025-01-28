@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"fmt"
 	"regexp"
 
 	"github.com/blang/semver/v4"
@@ -15,46 +16,57 @@ const (
 
 var versionRegex = regexp.MustCompile(versionRegexPattern)
 
-func checkSQLServerVersion(sqlConnection *connection.SQLConnection) bool {
+func getSQLServerVersion(sqlConnection *connection.SQLConnection) (string, error) {
 	rows, err := sqlConnection.Queryx(getSQLServerVersionQuery)
 	if err != nil {
-		log.Error("Error getting Server version:", err)
-		return false
+		return "", fmt.Errorf("error getting server version: %w", err)
 	}
 	defer rows.Close()
 	rows.Next()
 	var serverVersion string
 	if err := rows.Scan(&serverVersion); err != nil {
-		log.Error("Error scanning server version:", err)
-		return false
+		return "", fmt.Errorf("error scanning server version: %w", err)
 	}
 	if serverVersion == "" {
-		log.Error("Server version is empty")
-		return false
+		return "", fmt.Errorf("server version is empty")
 	}
 	log.Debug("Server version: %s", serverVersion)
+	return serverVersion, nil
+}
+
+func parseSQLServerVersion(serverVersion string) (semver.Version, error) {
 	versionStr := versionRegex.FindString(serverVersion)
 	if versionStr == "" {
-		log.Error("Could not parse version from server version string")
-		return false
+		return semver.Version{}, fmt.Errorf("could not parse version from server version string")
 	}
 	log.Debug("Parsed version string: %s", versionStr)
 	version, err := semver.ParseTolerant(versionStr)
 	if err != nil {
-		log.Error("Error parsing version:", err)
-		return false
+		return semver.Version{}, fmt.Errorf("error parsing version: %w", err)
 	}
 	log.Debug("Parsed semantic version: %s", version)
+	return version, nil
+}
+
+func isSQLServerVersionSupported(version semver.Version) bool {
 	supportedVersions := []uint64{16, 15, 14} // Corresponding to SQL Server 2022, 2019, and 2017
-	isSupported := false
 	for _, supportedVersion := range supportedVersions {
 		if version.Major == supportedVersion {
-			isSupported = true
-			break
+			return true
 		}
 	}
-	if !isSupported {
-		log.Error("Unsupported SQL Server version: %s", version.String())
+	log.Error("Unsupported SQL Server version: %s", version.String())
+	return false
+}
+
+func checkSQLServerVersion(sqlConnection *connection.SQLConnection) (bool, error) {
+	serverVersion, err := getSQLServerVersion(sqlConnection)
+	if err != nil {
+		return false, err
 	}
-	return isSupported
+	version, err := parseSQLServerVersion(serverVersion)
+	if err != nil {
+		return false, err
+	}
+	return isSQLServerVersionSupported(version), nil
 }
