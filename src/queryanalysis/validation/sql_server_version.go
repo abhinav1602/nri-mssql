@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 
@@ -14,7 +15,11 @@ const (
 	getSQLServerVersionQuery = "SELECT @@VERSION"
 )
 
-var versionRegex = regexp.MustCompile(versionRegexPattern)
+var (
+	versionRegex          = regexp.MustCompile(versionRegexPattern)
+	errEmptyServerVersion = errors.New("server version is empty")
+	errParseVersion       = errors.New("could not parse version from server version string")
+)
 
 func getSQLServerVersion(sqlConnection *connection.SQLConnection) (string, error) {
 	rows, err := sqlConnection.Queryx(getSQLServerVersionQuery)
@@ -28,7 +33,7 @@ func getSQLServerVersion(sqlConnection *connection.SQLConnection) (string, error
 		return "", fmt.Errorf("error scanning server version: %w", err)
 	}
 	if serverVersion == "" {
-		return "", fmt.Errorf("server version is empty")
+		return "", fmt.Errorf("%w", errEmptyServerVersion)
 	}
 	log.Debug("Server version: %s", serverVersion)
 	return serverVersion, nil
@@ -37,7 +42,7 @@ func getSQLServerVersion(sqlConnection *connection.SQLConnection) (string, error
 func parseSQLServerVersion(serverVersion string) (semver.Version, error) {
 	versionStr := versionRegex.FindString(serverVersion)
 	if versionStr == "" {
-		return semver.Version{}, fmt.Errorf("could not parse version from server version string")
+		return semver.Version{}, fmt.Errorf("%w", errParseVersion)
 	}
 	log.Debug("Parsed version string: %s", versionStr)
 	version, err := semver.ParseTolerant(versionStr)
