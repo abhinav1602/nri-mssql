@@ -4,13 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
-	"strconv"
-	"strings"
-
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/instance"
 	"github.com/newrelic/nri-mssql/src/metrics"
+	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
