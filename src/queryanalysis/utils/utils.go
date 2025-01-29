@@ -23,6 +23,14 @@ import (
 var (
 	ErrUnknownQueryType       = errors.New("unknown query type")
 	ErrCreatingInstanceEntity = errors.New("error creating instance entity")
+	// anonymizeLiteralValueRegex is a regular expression pattern used to match and identify
+	// certain types of literal values in a string. Specifically, it matches:
+	// 1. Single-quoted character sequences, such as 'example'.
+	// 2. Numeric sequences (integer numbers), such as 123 or 456.
+	// 3. Double-quoted strings, such as "example".
+	// This regex can be useful for identifying and potentially anonymizing literal values
+	// in a given text, like extracting or concealing specific data within strings.
+	anonymizeLiteralValueRegex = regexp.MustCompile(`'[^']*'|\d+|".*?"`)
 )
 
 func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
@@ -258,13 +266,11 @@ func DetectMetricType(value string) metric.SourceType {
 	return metric.GAUGE
 }
 
-var re = regexp.MustCompile(`'[^']*'|\d+|".*?"`)
-
 func AnonymizeQueryText(query *string) {
 	if query == nil {
 		return
 	}
-	anonymizedQuery := re.ReplaceAllString(*query, "?")
+	anonymizedQuery := anonymizeLiteralValueRegex.ReplaceAllString(*query, "?")
 	*query = anonymizedQuery
 }
 
