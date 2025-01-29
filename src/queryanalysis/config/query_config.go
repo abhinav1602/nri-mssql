@@ -290,9 +290,17 @@ var Queries = []models.QueryDetailsDto{
 const ExecutionPlanQueryTemplate = `
 DECLARE @TopN INT = %d; 
 DECLARE @ElapsedTimeThreshold INT = %d;  -- Define the elapsed time threshold in milliseconds
-DECLARE @QueryID NVARCHAR(50) = %s;      -- Change the query ID to a string
+DECLARE @QueryIDs NVARCHAR(1000) = '%s';      -- Change the query ID to a string
 DECLARE @IntervalSeconds INT = %d;       -- Define the interval in seconds (e.g., 3600 for the last hour)
 DECLARE @TextTruncateLimit INT = %d;     -- Define the dynamic limit for truncation of SQL text
+
+-- Declare and fill the temporary table
+DECLARE @QueryIdTable TABLE (QueryId BINARY(8));
+
+-- Use a conversion that properly removes the 0x prefix and casts to BINARY
+INSERT INTO @QueryIdTable (QueryId)
+SELECT CONVERT(BINARY(8), value, 1)
+FROM STRING_SPLIT(@QueryIDs, ',');
 
 WITH XMLNAMESPACES (DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan'),
 TopPlans AS (
@@ -307,7 +315,7 @@ TopPlans AS (
     FROM sys.dm_exec_query_stats AS qs
     CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS st
     CROSS APPLY sys.dm_exec_query_plan(qs.plan_handle) AS qp
-    WHERE CONVERT(NVARCHAR(50), qs.query_hash) = @QueryID 
+	WHERE qs.query_hash IN (SELECT QueryId FROM @QueryIdTable)
     AND qs.last_execution_time BETWEEN DATEADD(SECOND, -@IntervalSeconds, GETUTCDATE()) AND GETUTCDATE() 
     AND COALESCE((qs.total_elapsed_time / NULLIF(qs.execution_count, 0)) / 1000, 0) > @ElapsedTimeThreshold
     ORDER BY avg_elapsed_time_ms DESC
