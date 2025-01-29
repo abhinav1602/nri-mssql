@@ -140,12 +140,10 @@ func BindQueryResults(arguments args.ArgumentList,
 			AnonymizeQueryText(model.QueryText)
 			AnonymizeSegment.End()
 			results = append(results, model)
-			SingleExecutionPlanSegment := executeAndBindTransaction.StartSegment("bindQueryResults - " + "SingleExecutionPlanSubsegment")
 			// fetch and generate execution plan
 			if model.QueryID != nil {
 				queryIDs = append(queryIDs, *model.QueryID)
 			}
-			SingleExecutionPlanSegment.End()
 
 		case "waitAnalysis":
 			var model models.WaitTimeAnalysis
@@ -182,13 +180,14 @@ func BindQueryResults(arguments args.ArgumentList,
 		segment.End()
 	}
 	// Process collected query IDs for execution plan
-	ProcessExecutionPlans(arguments, integration, sqlConnection, queryIDs)
+	ProcessExecutionPlans(arguments, integration, sqlConnection, queryIDs, executeAndBindTransaction)
 	BindQuerySegment.End()
 	return results, nil
 }
 
 // ProcessExecutionPlans processes execution plans for all collected queryIDs
-func ProcessExecutionPlans(arguments args.ArgumentList, integration *integration.Integration, sqlConnection *connection.SQLConnection, queryIDs []models.HexString) {
+func ProcessExecutionPlans(arguments args.ArgumentList, integration *integration.Integration,
+	sqlConnection *connection.SQLConnection, queryIDs []models.HexString, executeAndBindTransaction *newrelic.Transaction) {
 	if len(queryIDs) == 0 {
 		return
 	}
@@ -200,7 +199,7 @@ func ProcessExecutionPlans(arguments args.ArgumentList, integration *integration
 	// Join the converted string slice into a comma-separated list
 	queryIDString := strings.Join(stringIDs, ",")
 
-	GenerateAndIngestExecutionPlan(arguments, integration, sqlConnection, queryIDString)
+	GenerateAndIngestExecutionPlan(arguments, integration, sqlConnection, queryIDString, executeAndBindTransaction)
 }
 
 func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *integration.Integration,
