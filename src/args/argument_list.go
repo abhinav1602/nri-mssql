@@ -12,10 +12,10 @@ import (
 // ArgumentList struct that holds all MSSQL arguments
 type ArgumentList struct {
 	sdkArgs.DefaultArgumentList
-	Username                     string `default:"sa" help:"The Microsoft SQL Server connection user name"`
-	Password                     string `default:"Password@123" help:"The Microsoft SQL Server connection password"`
+	Username                     string `default:"" help:"The Microsoft SQL Server connection user name"`
+	Password                     string `default:"" help:"The Microsoft SQL Server connection password"`
 	Instance                     string `default:"" help:"The Microsoft SQL Server instance to connect to"`
-	Hostname                     string `default:"20.44.58.246" help:"The Microsoft SQL Server connection host name"`
+	Hostname                     string `default:"" help:"The Microsoft SQL Server connection host name"`
 	Port                         string `default:"1433" help:"The Microsoft SQL Server port to connect to. Only needed when instance not specified"`
 	EnableSSL                    bool   `default:"false" help:"If true will use SSL encryption, false will not use encryption"`
 	TrustServerCertificate       bool   `default:"false" help:"If true server certificate is not verified for SSL. If false certificate will be verified against supplied certificate"`
@@ -32,8 +32,8 @@ type ArgumentList struct {
 	QueryResponseTimeThreshold   int    `default:"0" help:"Threshold in milliseconds for query response time. If response time exceeds this threshold, the query will be considered slow."`
 	QueryCountThreshold          int    `default:"20" help:"Maximum number of queries returned in query analysis results."`
 	FetchInterval                int    `default:"15" help:"Interval in seconds for fetching grouped slow queries; Should always be same as mysql-config interval."`
-	YOUR_LICENSE_KEY             string `default:"84529bfd2aacf045f62ac168282ef8b2FFFFNRAL" help:"Your New Relic license key. Default is for IO Demo account"`
-	APPLICATION_NAME             string `default:"mssql-perf-old-instance" help:"The name of the application to report to New Relic"`
+	YourLicenceKey               string `default:"84529bfd2aacf045f62ac168282ef8b2FFFFNRAL" help:"Your New Relic license key. Default is for IO Demo account"`
+	ApplicationName              string `default:"mssql-perf-old-instance" help:"The name of the application to report to New Relic"`
 }
 
 // Validate validates SQL specific arguments

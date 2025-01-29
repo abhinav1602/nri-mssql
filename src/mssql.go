@@ -40,9 +40,9 @@ func main() {
 	// Create an Application:
 	app, err := newrelic.NewApplication(
 		// Name your application
-		newrelic.ConfigAppName(args.APPLICATION_NAME),
+		newrelic.ConfigAppName(args.ApplicationName),
 		// Fill in your New Relic license key
-		newrelic.ConfigLicense(args.YOUR_LICENSE_KEY),
+		newrelic.ConfigLicense(args.YourLicenceKey),
 		// Add logging:
 		newrelic.ConfigDebugLogger(os.Stdout),
 		// Optional: add additional changes to your configuration via a config function:
