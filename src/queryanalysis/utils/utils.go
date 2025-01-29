@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
@@ -66,6 +67,8 @@ func BindQueryResults(arguments args.ArgumentList,
 
 	results := make([]interface{}, 0)
 
+	queryIDs := make([]models.HexString, 0) // List to collect queryIDs for all slowQueries to process execution plans
+
 	for rows.Next() {
 		switch queryDetailsDto.Type {
 		case "slowQueries":
@@ -75,12 +78,11 @@ func BindQueryResults(arguments args.ArgumentList,
 				continue
 			}
 			AnonymizeQueryText(model.QueryText)
-
 			results = append(results, model)
 
-			// fetch and generate execution plan
+			// Collect query IDs for fetching executionPlans
 			if model.QueryID != nil {
-				GenerateAndIngestExecutionPlan(arguments, integration, sqlConnection, *model.QueryID)
+				queryIDs = append(queryIDs, *model.QueryID)
 			}
 
 		case "waitAnalysis":
@@ -105,17 +107,31 @@ func BindQueryResults(arguments args.ArgumentList,
 			return nil, fmt.Errorf("%w: %s", ErrUnknownQueryType, queryDetailsDto.Type)
 		}
 	}
+
+	// Process collected query IDs for execution plan
+	ProcessExecutionPlans(arguments, integration, sqlConnection, queryIDs)
 	return results, nil
 }
 
-func GenerateAndIngestExecutionPlan(arguments args.ArgumentList,
-	integration *integration.Integration,
-	sqlConnection *connection.SQLConnection,
-	queryID models.HexString,
-) {
-	hexQueryID := string(queryID)
+// ProcessExecutionPlans processes execution plans for all collected queryIDs
+func ProcessExecutionPlans(arguments args.ArgumentList, integration *integration.Integration, sqlConnection *connection.SQLConnection, queryIDs []models.HexString) {
+	if len(queryIDs) == 0 {
+		return
+	}
+	stringIDs := make([]string, len(queryIDs))
+	for i, qid := range queryIDs {
+		stringIDs[i] = string(qid) // Cast HexString to string
+	}
+
+	// Join the converted string slice into a comma-separated list
+	queryIDString := strings.Join(stringIDs, ",")
+
+	GenerateAndIngestExecutionPlan(arguments, integration, sqlConnection, queryIDString)
+}
+
+func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *integration.Integration, sqlConnection *connection.SQLConnection, queryIDString string) {
 	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, min(config.IndividualQueryCountMax, arguments.QueryCountThreshold),
-		arguments.QueryResponseTimeThreshold, hexQueryID, arguments.FetchInterval, config.TextTruncateLimit)
+		arguments.QueryResponseTimeThreshold, queryIDString, arguments.FetchInterval, config.TextTruncateLimit)
 
 	var model models.ExecutionPlanResult
 
@@ -138,9 +154,7 @@ func GenerateAndIngestExecutionPlan(arguments args.ArgumentList,
 	}
 
 	queryDetailsDto := models.QueryDetailsDto{
-		Name:  "MSSQLQueryExecutionPlans",
-		Query: "",
-		Type:  "executionPlan",
+		Name: "MSSQLQueryExecutionPlans",
 	}
 
 	// Ingest the execution plan
