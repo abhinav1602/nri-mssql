@@ -175,7 +175,7 @@ func IngestQueryMetricsInBatches(results []interface{},
 	integration *integration.Integration,
 	sqlConnection *connection.SQLConnection,
 ) error {
-	const batchSize = 100 // New Relic's Integration SDK imposes a limit of 1000 metrics per ingestion.To handle metric sets exceeding this limit, we process and ingest metrics in smaller chunks to ensure all data is successfully reported without exceeding the limit.
+	const batchSize = 600 // New Relic's Integration SDK imposes a limit of 1000 metrics per ingestion.To handle metric sets exceeding this limit, we process and ingest metrics in smaller chunks to ensure all data is successfully reported without exceeding the limit.
 
 	for start := 0; start < len(results); start += batchSize {
 		end := start + batchSize
