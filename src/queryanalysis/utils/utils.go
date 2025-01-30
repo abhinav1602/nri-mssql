@@ -23,14 +23,14 @@ import (
 var (
 	ErrUnknownQueryType       = errors.New("unknown query type")
 	ErrCreatingInstanceEntity = errors.New("error creating instance entity")
-	// anonymizeLiteralValueRegex is a regular expression pattern used to match and identify
+	// literalAnonymizer is a regular expression pattern used to match and identify
 	// certain types of literal values in a string. Specifically, it matches:
 	// 1. Single-quoted character sequences, such as 'example'.
 	// 2. Numeric sequences (integer numbers), such as 123 or 456.
 	// 3. Double-quoted strings, such as "example".
 	// This regex can be useful for identifying and potentially anonymizing literal values
 	// in a given text, like extracting or concealing specific data within strings.
-	anonymizeLiteralValueRegex = regexp.MustCompile(`'[^']*'|\d+|".*?"`)
+	literalAnonymizer = regexp.MustCompile(`'[^']*'|\d+|".*?"`)
 )
 
 func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
@@ -39,12 +39,12 @@ func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) 
 	for i := range queries {
 		switch queries[i].Type {
 		case "slowQueries":
-			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval, arguments.QueryCountThreshold,
-				arguments.QueryResponseTimeThreshold, config.TextTruncateLimit)
+			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.QueryMonitoringFetchInterval, arguments.QueryMonitoringCountThreshold,
+				arguments.QueryMonitoringResponseTimeThreshold, config.TextTruncateLimit)
 		case "waitAnalysis":
-			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.QueryCountThreshold, config.TextTruncateLimit)
+			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.QueryMonitoringCountThreshold, config.TextTruncateLimit)
 		case "blockingSessions":
-			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.QueryCountThreshold, config.TextTruncateLimit)
+			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.QueryMonitoringCountThreshold, config.TextTruncateLimit)
 		default:
 			fmt.Println("Unknown query type:", queries[i].Type)
 		}
@@ -137,8 +137,8 @@ func ProcessExecutionPlans(arguments args.ArgumentList, integration *integration
 }
 
 func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *integration.Integration, sqlConnection *connection.SQLConnection, queryIDString string) {
-	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, min(config.IndividualQueryCountMax, arguments.QueryCountThreshold),
-		arguments.QueryResponseTimeThreshold, queryIDString, arguments.FetchInterval, config.TextTruncateLimit)
+	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, min(config.IndividualQueryCountMax, arguments.QueryMonitoringCountThreshold),
+		arguments.QueryMonitoringResponseTimeThreshold, queryIDString, arguments.QueryMonitoringFetchInterval, config.TextTruncateLimit)
 
 	var model models.ExecutionPlanResult
 
@@ -270,23 +270,23 @@ func AnonymizeQueryText(query *string) {
 	if query == nil {
 		return
 	}
-	anonymizedQuery := anonymizeLiteralValueRegex.ReplaceAllString(*query, "?")
+	anonymizedQuery := literalAnonymizer.ReplaceAllString(*query, "?")
 	*query = anonymizedQuery
 }
 
 // ValidateAndSetDefaults checks if fields are invalid and sets defaults
 func ValidateAndSetDefaults(args *args.ArgumentList) {
 	// Since EnableQueryMonitoring is a boolean, no need to reset as it can't be invalid in this context
-	if args.QueryResponseTimeThreshold < 0 {
-		args.QueryResponseTimeThreshold = config.QueryResponseTimeThresholdDefault
+	if args.QueryMonitoringResponseTimeThreshold < 0 {
+		args.QueryMonitoringResponseTimeThreshold = config.QueryResponseTimeThresholdDefault
 		log.Warn("Query response time threshold is negative, setting to default value: %d", config.QueryResponseTimeThresholdDefault)
 	}
 
-	if args.QueryCountThreshold < 0 {
-		args.QueryCountThreshold = config.SlowQueryCountThresholdDefault
+	if args.QueryMonitoringCountThreshold < 0 {
+		args.QueryMonitoringCountThreshold = config.SlowQueryCountThresholdDefault
 		log.Warn("Query count threshold is negative, setting to default value: %d", config.SlowQueryCountThresholdDefault)
-	} else if args.QueryCountThreshold >= config.GroupedQueryCountMax {
-		args.QueryCountThreshold = config.GroupedQueryCountMax
+	} else if args.QueryMonitoringCountThreshold >= config.GroupedQueryCountMax {
+		args.QueryMonitoringCountThreshold = config.GroupedQueryCountMax
 		log.Warn("Query count threshold is greater than max supported value, setting to max supported value: %d", config.GroupedQueryCountMax)
 	}
 }
