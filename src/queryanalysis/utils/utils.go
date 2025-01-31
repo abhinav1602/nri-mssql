@@ -10,6 +10,7 @@ import (
 
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/instance"
+	"github.com/newrelic/nri-mssql/src/metrics"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
@@ -234,7 +235,7 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 		// Iterate over the map and add each key-value pair as a metric
 		for key, value := range resultMap {
 			strValue := fmt.Sprintf("%v", value) // Convert the value to a string representation
-			metricType := DetectMetricType(strValue)
+			metricType := metrics.DetectMetricType(strValue)
 			if metricType == metric.GAUGE {
 				handleGaugeMetric(key, strValue, metricSet)
 			} else {
@@ -250,13 +251,6 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 		return err
 	}
 	return nil
-}
-
-func DetectMetricType(value string) metric.SourceType {
-	if _, err := strconv.ParseFloat(value, 64); err != nil {
-		return metric.ATTRIBUTE
-	}
-	return metric.GAUGE
 }
 
 var re = regexp.MustCompile(`'[^']*'|\d+|".*?"`)
