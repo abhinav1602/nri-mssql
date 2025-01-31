@@ -4,7 +4,6 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/blang/semver/v4"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
@@ -86,14 +85,4 @@ func TestGetSQLServerVersion_InvalidVersionString(t *testing.T) {
 func TestGetSQLServerVersion_ParseError(t *testing.T) {
 	_, err := parseSQLServerVersion("Invalid SQL Server version string")
 	assert.Error(t, err)
-}
-
-func TestIsSQLServerVersionSupported_SupportedVersion(t *testing.T) {
-	version := semver.Version{Major: 15}
-	assert.True(t, isSQLServerVersionSupported(version))
-}
-
-func TestIsSQLServerVersionSupported_UnsupportedVersion(t *testing.T) {
-	version := semver.Version{Major: 13}
-	assert.False(t, isSQLServerVersionSupported(version))
 }

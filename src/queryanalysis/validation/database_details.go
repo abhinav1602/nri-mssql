@@ -14,14 +14,6 @@ const getDatabaseDetailsQuery = `
 
 // GetDatabaseDetails gets the details of user databases
 func GetDatabaseDetails(sqlConnection *connection.SQLConnection) ([]models.DatabaseDetailsDto, error) {
-	isSupported, err := checkSQLServerVersion(sqlConnection)
-	if err != nil {
-		return nil, err
-	}
-	if !isSupported {
-		log.Error("Unsupported SQL Server version.")
-		return nil, nil
-	}
 
 	rows, err := sqlConnection.Queryx(getDatabaseDetailsQuery)
 	if err != nil {
