@@ -5,13 +5,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/newrelic/nri-mssql/src/connection"
+
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/config"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/nri-mssql/src/args"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )

@@ -2,8 +2,8 @@ package validation
 
 import (
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
+	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/config"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
 )
 

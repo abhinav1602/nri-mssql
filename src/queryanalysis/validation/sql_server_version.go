@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/newrelic/nri-mssql/src/connection"
+
 	"github.com/blang/semver/v4"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
 )
 
 const (

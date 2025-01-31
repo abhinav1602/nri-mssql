@@ -4,8 +4,9 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/newrelic/nri-mssql/src/connection"
+
 	"github.com/jmoiron/sqlx"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
