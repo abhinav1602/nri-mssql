@@ -354,7 +354,7 @@ ORDER BY plan_handle, NodeId;
 // We need to use this limit of long strings that we are injesting because the logs datastore in New Relic limits the field length to 4,094 characters. Any data longer than that is truncated during ingestion.
 const TextTruncateLimit = 4094
 
-var (
+const (
 	QueryResponseTimeThresholdDefault = 500
 	SlowQueryCountThresholdDefault    = 20
 	IndividualQueryCountMax           = 10
