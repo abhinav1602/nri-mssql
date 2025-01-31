@@ -226,8 +226,8 @@ func TestLoadQueries_SlowQueries(t *testing.T) {
 	}
 
 	configQueries[slowQueriesIndex].Query = fmt.Sprintf(configQueries[slowQueriesIndex].Query,
-		arguments.FetchInterval, arguments.QueryCountThreshold,
-		arguments.QueryResponseTimeThreshold, config.TextTruncateLimit)
+		arguments.QueryMonitoringFetchInterval, arguments.QueryMonitoringCountThreshold,
+		arguments.QueryMonitoringResponseTimeThreshold, config.TextTruncateLimit)
 	if queries[slowQueriesIndex].Query != configQueries[slowQueriesIndex].Query {
 		t.Errorf("expected: %s, got: %s", configQueries[slowQueriesIndex].Query, queries[slowQueriesIndex].Query)
 	}
@@ -237,8 +237,8 @@ func TestLoadQueries_WaitAnalysis(t *testing.T) {
 	configQueries := config.Queries
 	var args args.ArgumentList
 
-	args.FetchInterval = 15
-	args.QueryCountThreshold = 10
+	args.QueryMonitoringFetchInterval = 15
+	args.QueryMonitoringCountThreshold = 10
 
 	waitQueriesIndex := -1
 	for i, query := range configQueries {
@@ -259,7 +259,7 @@ func TestLoadQueries_WaitAnalysis(t *testing.T) {
 	}
 
 	configQueries[waitQueriesIndex].Query = fmt.Sprintf(
-		configQueries[waitQueriesIndex].Query, args.FetchInterval, args.FetchInterval, args.QueryCountThreshold, config.TextTruncateLimit)
+		configQueries[waitQueriesIndex].Query, args.QueryMonitoringFetchInterval, args.QueryMonitoringFetchInterval, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
 	if queries[waitQueriesIndex].Query != configQueries[waitQueriesIndex].Query {
 		t.Errorf("expected: %s, got: %s", configQueries[waitQueriesIndex].Query, queries[waitQueriesIndex].Query)
 	}
@@ -269,8 +269,8 @@ func TestLoadQueries_BlockingSessions(t *testing.T) {
 	configQueries := config.Queries
 	var args args.ArgumentList
 
-	args.FetchInterval = 15
-	args.QueryCountThreshold = 10
+	args.QueryMonitoringFetchInterval = 15
+	args.QueryMonitoringCountThreshold = 10
 
 	blockQueriesIndex := -1
 	for i, query := range configQueries {
@@ -307,7 +307,7 @@ func TestLoadQueries_UnknownType(t *testing.T) {
 	}
 
 	var args args.ArgumentList
-	args.FetchInterval = 15
+	args.QueryMonitoringFetchInterval = 15
 
 	queries, err := LoadQueries(args)
 	if err != nil {
@@ -342,26 +342,26 @@ func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 
 	// Setup: Create a sample ArgumentList with realistic values that will be used to replace the %d format specifiers
 	sampleArgs := args.ArgumentList{
-		FetchInterval:              15,
-		QueryCountThreshold:        25,
-		QueryResponseTimeThreshold: 35,
+		QueryMonitoringFetchInterval:         15,
+		QueryMonitoringCountThreshold:        25,
+		QueryMonitoringResponseTimeThreshold: 35,
 	}
 	// Expected queries after formatting
 	expectedQueries := []models.QueryDetailsDto{
 		{
 			Name:  "MSSQLTopSlowQueries",
 			Type:  "slowQueries",
-			Query: fmt.Sprintf(config.Queries[0].Query, sampleArgs.FetchInterval, sampleArgs.QueryCountThreshold, sampleArgs.QueryResponseTimeThreshold, config.TextTruncateLimit),
+			Query: fmt.Sprintf(config.Queries[0].Query, sampleArgs.QueryMonitoringFetchInterval, sampleArgs.QueryMonitoringCountThreshold, sampleArgs.QueryMonitoringResponseTimeThreshold, config.TextTruncateLimit),
 		},
 		{
 			Name:  "MSSQLWaitTimeAnalysis",
 			Type:  "waitAnalysis",
-			Query: fmt.Sprintf(config.Queries[1].Query, sampleArgs.QueryCountThreshold, config.TextTruncateLimit),
+			Query: fmt.Sprintf(config.Queries[1].Query, sampleArgs.QueryMonitoringCountThreshold, config.TextTruncateLimit),
 		},
 		{
 			Name:  "MSSQLBlockingSessionQueries",
 			Type:  "blockingSessions",
-			Query: fmt.Sprintf(config.Queries[2].Query, sampleArgs.QueryCountThreshold, config.TextTruncateLimit),
+			Query: fmt.Sprintf(config.Queries[2].Query, sampleArgs.QueryMonitoringCountThreshold, config.TextTruncateLimit),
 		},
 	}
 	// Execute the function
@@ -396,9 +396,9 @@ func TestLoadQueries_EmptyConfig(t *testing.T) {
 
 	// Setup: Sample ArgumentList
 	sampleArgs := args.ArgumentList{
-		FetchInterval:              10,
-		QueryCountThreshold:        20,
-		QueryResponseTimeThreshold: 30,
+		QueryMonitoringFetchInterval:         10,
+		QueryMonitoringCountThreshold:        20,
+		QueryMonitoringResponseTimeThreshold: 30,
 	}
 
 	// Execute the function
