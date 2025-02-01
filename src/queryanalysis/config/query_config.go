@@ -6,7 +6,7 @@ import "github.com/newrelic/nri-mssql/src/queryanalysis/models"
 // The above link contains all the queries, data models, and query details for QueryAnalysis.
 var Queries = []models.QueryDetailsDto{
 	{
-		Name: "MSSQLTopSlowQueries",
+		EventName: "MSSQLTopSlowQueries",
 		Query: `DECLARE @IntervalSeconds INT = %d; 		-- Define the interval in seconds
 				DECLARE @TopN INT = %d; 				-- Number of top queries to retrieve
 				DECLARE @ElapsedTimeThreshold INT = %d; -- Elapsed time threshold in milliseconds
@@ -123,7 +123,7 @@ var Queries = []models.QueryDetailsDto{
 		Type: "slowQueries",
 	},
 	{
-		Name: "MSSQLWaitTimeAnalysis",
+		EventName: "MSSQLWaitTimeAnalysis",
 		Query: `DECLARE @TopN INT = %d; 				-- Number of results to retrieve
 				DECLARE @TextTruncateLimit INT = %d; 	-- Truncate limit for query_text
 				DECLARE @sql NVARCHAR(MAX) = '';
@@ -235,7 +235,7 @@ var Queries = []models.QueryDetailsDto{
 		Type: "waitAnalysis",
 	},
 	{
-		Name: "MSSQLBlockingSessionQueries",
+		EventName: "MSSQLBlockingSessionQueries",
 		Query: `DECLARE @Limit INT = %d; -- Define the limit for the number of rows returned
 				DECLARE @TextTruncateLimit INT = %d; -- Define the truncate limit for the query text
 				WITH blocking_info AS (

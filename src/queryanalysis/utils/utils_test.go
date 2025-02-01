@@ -33,9 +33,9 @@ func TestExecuteQuery_SlowQueriesSuccess(t *testing.T) {
 			))
 
 	queryDetails := models.QueryDetailsDto{
-		Name:  "SlowQueries",
-		Query: query,
-		Type:  "slowQueries",
+		EventName: "SlowQueries",
+		Query:     query,
+		Type:      "slowQueries",
 	}
 
 	integrationObj := &integration.Integration{}
@@ -89,9 +89,9 @@ func TestExecuteQuery_WaitTimeAnalysis(t *testing.T) {
 			))
 
 	queryDetails := models.QueryDetailsDto{
-		Name:  "WaitTimeAnalysisQuery",
-		Query: query,
-		Type:  "waitAnalysis",
+		EventName: "WaitTimeAnalysisQuery",
+		Query:     query,
+		Type:      "waitAnalysis",
 	}
 
 	integrationObj := &integration.Integration{}
@@ -151,9 +151,9 @@ func TestExecuteQuery_BlockingSessionsSuccess(t *testing.T) {
 			))
 
 	queryDetails := models.QueryDetailsDto{
-		Name:  "BlockingSessionsQuery",
-		Query: query,
-		Type:  "blockingSessions",
+		EventName: "BlockingSessionsQuery",
+		Query:     query,
+		Type:      "blockingSessions",
 	}
 
 	integrationObj := &integration.Integration{}
@@ -300,9 +300,9 @@ func TestLoadQueries_BlockingSessions(t *testing.T) {
 func TestLoadQueries_UnknownType(t *testing.T) {
 	config.Queries = []models.QueryDetailsDto{
 		{
-			Name:  "UnknownTypeQuery",
-			Query: "SELECT * FROM mysterious_table",
-			Type:  "unknownType",
+			EventName: "UnknownTypeQuery",
+			Query:     "SELECT * FROM mysterious_table",
+			Type:      "unknownType",
 		},
 	}
 
@@ -324,19 +324,19 @@ func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 	// Setup: Ensure config.Queries uses all %d format specifiers as intended
 	config.Queries = []models.QueryDetailsDto{
 		{
-			Name:  "MSSQLTopSlowQueries",
-			Type:  "slowQueries",
-			Query: "SELECT * FROM slow_queries WHERE condition",
+			EventName: "MSSQLTopSlowQueries",
+			Type:      "slowQueries",
+			Query:     "SELECT * FROM slow_queries WHERE condition",
 		},
 		{
-			Name:  "MSSQLWaitTimeAnalysis",
-			Type:  "waitAnalysis",
-			Query: "SELECT * FROM wait_analysis WHERE condition",
+			EventName: "MSSQLWaitTimeAnalysis",
+			Type:      "waitAnalysis",
+			Query:     "SELECT * FROM wait_analysis WHERE condition",
 		},
 		{
-			Name:  "MSSQLBlockingSessionQueries",
-			Type:  "blockingSessions",
-			Query: "SELECT * FROM blocking_sessions WHERE condition",
+			EventName: "MSSQLBlockingSessionQueries",
+			Type:      "blockingSessions",
+			Query:     "SELECT * FROM blocking_sessions WHERE condition",
 		},
 	}
 
@@ -349,19 +349,19 @@ func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 	// Expected queries after formatting
 	expectedQueries := []models.QueryDetailsDto{
 		{
-			Name:  "MSSQLTopSlowQueries",
-			Type:  "slowQueries",
-			Query: fmt.Sprintf(config.Queries[0].Query, sampleArgs.QueryMonitoringFetchInterval, sampleArgs.QueryMonitoringCountThreshold, sampleArgs.QueryMonitoringResponseTimeThreshold, config.TextTruncateLimit),
+			EventName: "MSSQLTopSlowQueries",
+			Type:      "slowQueries",
+			Query:     fmt.Sprintf(config.Queries[0].Query, sampleArgs.FetchInterval, sampleArgs.QueryCountThreshold, sampleArgs.QueryResponseTimeThreshold, config.TextTruncateLimit),
 		},
 		{
-			Name:  "MSSQLWaitTimeAnalysis",
-			Type:  "waitAnalysis",
-			Query: fmt.Sprintf(config.Queries[1].Query, sampleArgs.QueryMonitoringCountThreshold, config.TextTruncateLimit),
+			EventName: "MSSQLWaitTimeAnalysis",
+			Type:      "waitAnalysis",
+			Query:     fmt.Sprintf(config.Queries[1].Query, sampleArgs.QueryCountThreshold, config.TextTruncateLimit),
 		},
 		{
-			Name:  "MSSQLBlockingSessionQueries",
-			Type:  "blockingSessions",
-			Query: fmt.Sprintf(config.Queries[2].Query, sampleArgs.QueryMonitoringCountThreshold, config.TextTruncateLimit),
+			EventName: "MSSQLBlockingSessionQueries",
+			Type:      "blockingSessions",
+			Query:     fmt.Sprintf(config.Queries[2].Query, sampleArgs.QueryCountThreshold, config.TextTruncateLimit),
 		},
 	}
 	// Execute the function
@@ -377,8 +377,8 @@ func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 		if len(loadedQueries) <= i {
 			t.Fatalf("missing query at index %d", i)
 		}
-		if loadedQueries[i].Name != expected.Name {
-			t.Errorf("query %d: expected name '%s', got '%s'", i, expected.Name, loadedQueries[i].Name)
+		if loadedQueries[i].EventName != expected.EventName {
+			t.Errorf("query %d: expected name '%s', got '%s'", i, expected.EventName, loadedQueries[i].EventName)
 		}
 		if loadedQueries[i].Type != expected.Type {
 			t.Errorf("query %d: expected type '%s', got '%s'", i, expected.Type, loadedQueries[i].Type)
