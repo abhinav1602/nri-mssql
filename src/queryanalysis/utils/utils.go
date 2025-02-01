@@ -70,7 +70,7 @@ func LoadQueries(queries []models.QueryDetailsDto, arguments args.ArgumentList) 
 		formatter, ok := queryFormatters[loadedQueries[i].Type]
 		if !ok {
 			// Log the error and return an error instead of nil
-			err := fmt.Errorf("unknown query type: %s", loadedQueries[i].Type)
+			err := fmt.Errorf("%w: %s", ErrUnknownQueryType, loadedQueries[i].Type)
 			log.Error(err.Error())
 			return nil, err
 		}
