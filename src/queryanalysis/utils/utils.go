@@ -47,18 +47,18 @@ var queryFormatters = map[string]queryFormatter{
 
 // formatSlowQueries formats the slow queries query.
 func formatSlowQueries(query string, args args.ArgumentList) string {
-	return fmt.Sprintf(query, args.FetchInterval, args.QueryCountThreshold,
-		args.QueryResponseTimeThreshold, config.TextTruncateLimit)
+	return fmt.Sprintf(query, args.QueryMonitoringFetchInterval, args.QueryMonitoringCountThreshold,
+		args.QueryMonitoringResponseTimeThreshold, config.TextTruncateLimit)
 }
 
 // formatWaitAnalysis formats the wait analysis query.
 func formatWaitAnalysis(query string, args args.ArgumentList) string {
-	return fmt.Sprintf(query, args.QueryCountThreshold, config.TextTruncateLimit)
+	return fmt.Sprintf(query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
 }
 
 // formatBlockingSessions formats the blocking sessions query.
 func formatBlockingSessions(query string, args args.ArgumentList) string {
-	return fmt.Sprintf(query, args.QueryCountThreshold, config.TextTruncateLimit)
+	return fmt.Sprintf(query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
 }
 
 // LoadQueries loads and formats query details based on the provided arguments.
@@ -69,8 +69,10 @@ func LoadQueries(queries []models.QueryDetailsDto, arguments args.ArgumentList) 
 	for i := range loadedQueries {
 		formatter, ok := queryFormatters[loadedQueries[i].Type]
 		if !ok {
-			log.Error("unknown query type: %s" + loadedQueries[i].Type)
-			return nil, nil
+			// Log the error and return an error instead of nil
+			err := fmt.Errorf("unknown query type: %s", loadedQueries[i].Type)
+			log.Error(err.Error())
+			return nil, err
 		}
 		loadedQueries[i].Query = formatter(loadedQueries[i].Query, arguments)
 	}
