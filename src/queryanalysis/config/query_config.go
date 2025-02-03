@@ -355,9 +355,23 @@ ORDER BY plan_handle, NodeId;
 const TextTruncateLimit = 4094
 
 const (
+	// QueryResponseTimeThresholdDefault defines the default threshold in milliseconds
+	// for determining if a query is considered slow based on its response time.
 	QueryResponseTimeThresholdDefault = 500
-	SlowQueryCountThresholdDefault    = 20
-	IndividualQueryCountMax           = 10
-	GroupedQueryCountMax              = 30
-	MaxSystemDatabaseID               = 4
+
+	// SlowQueryCountThresholdDefault sets the default maximum number of slow queries
+	// that is ingested in an analysis cycle/interval.
+	SlowQueryCountThresholdDefault = 20
+
+	// IndividualQueryCountMax represents the maximum number of individual queries
+	// that is ingested at one time for any grouped query in detailed analysis.
+	IndividualQueryCountMax = 10
+
+	// GroupedQueryCountMax specifies the maximum number of grouped queries
+	// that is ingested in  an analysis cycle/interval.
+	GroupedQueryCountMax = 30
+
+	// MaxSystemDatabaseID indicates the highest database ID value considered
+	// a system database, used to filter out system databases from certain operations.
+	MaxSystemDatabaseID = 4
 )
