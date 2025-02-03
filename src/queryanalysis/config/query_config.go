@@ -6,7 +6,7 @@ import "github.com/newrelic/nri-mssql/src/queryanalysis/models"
 // The above link contains all the queries, data models, and query details for QueryAnalysis.
 var Queries = []models.QueryDetailsDto{
 	{
-		Name: "MSSQLTopSlowQueries",
+		EventName: "MSSQLTopSlowQueries",
 		Query: `DECLARE @IntervalSeconds INT = %d; 		-- Define the interval in seconds
 				DECLARE @TopN INT = %d; 				-- Number of top queries to retrieve
 				DECLARE @ElapsedTimeThreshold INT = %d; -- Elapsed time threshold in milliseconds
@@ -123,7 +123,7 @@ var Queries = []models.QueryDetailsDto{
 		Type: "slowQueries",
 	},
 	{
-		Name: "MSSQLWaitTimeAnalysis",
+		EventName: "MSSQLWaitTimeAnalysis",
 		Query: `DECLARE @TopN INT = %d; 				-- Number of results to retrieve
 				DECLARE @TextTruncateLimit INT = %d; 	-- Truncate limit for query_text
 				DECLARE @sql NVARCHAR(MAX) = '';
@@ -235,7 +235,7 @@ var Queries = []models.QueryDetailsDto{
 		Type: "waitAnalysis",
 	},
 	{
-		Name: "MSSQLBlockingSessionQueries",
+		EventName: "MSSQLBlockingSessionQueries",
 		Query: `DECLARE @Limit INT = %d; -- Define the limit for the number of rows returned
 				DECLARE @TextTruncateLimit INT = %d; -- Define the truncate limit for the query text
 				WITH blocking_info AS (
@@ -354,10 +354,24 @@ ORDER BY plan_handle, NodeId;
 // We need to use this limit of long strings that we are injesting because the logs datastore in New Relic limits the field length to 4,094 characters. Any data longer than that is truncated during ingestion.
 const TextTruncateLimit = 4094
 
-var (
+const (
+	// QueryResponseTimeThresholdDefault defines the default threshold in milliseconds
+	// for determining if a query is considered slow based on its response time.
 	QueryResponseTimeThresholdDefault = 500
-	SlowQueryCountThresholdDefault    = 20
-	IndividualQueryCountMax           = 10
-	GroupedQueryCountMax              = 30
-	MaxSystemDatabaseID               = 4
+
+	// SlowQueryCountThresholdDefault sets the default maximum number of slow queries
+	// that is ingested in an analysis cycle/interval.
+	SlowQueryCountThresholdDefault = 20
+
+	// IndividualQueryCountMax represents the maximum number of individual queries
+	// that is ingested at one time for any grouped query in detailed analysis.
+	IndividualQueryCountMax = 10
+
+	// GroupedQueryCountMax specifies the maximum number of grouped queries
+	// that is ingested in  an analysis cycle/interval.
+	GroupedQueryCountMax = 30
+
+	// MaxSystemDatabaseID indicates the highest database ID value considered
+	// a system database, used to filter out system databases from certain operations.
+	MaxSystemDatabaseID = 4
 )
