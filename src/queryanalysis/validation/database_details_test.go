@@ -1,9 +1,10 @@
 package validation
 
 import (
-	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 	"regexp"
 	"testing"
+
+	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 
 	"github.com/newrelic/nri-mssql/src/connection"
 
