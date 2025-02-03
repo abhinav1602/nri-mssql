@@ -35,24 +35,48 @@ var (
 	literalAnonymizer = regexp.MustCompile(`'[^']*'|\d+|".*?"`)
 )
 
-func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
-	queries := config.Queries
+// queryFormatter defines a function type for formatting a query string.
+type queryFormatter func(query string, args args.ArgumentList) string
 
-	for i := range queries {
-		switch queries[i].Type {
-		case "slowQueries":
-			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.QueryMonitoringFetchInterval, arguments.QueryMonitoringCountThreshold,
-				arguments.QueryMonitoringResponseTimeThreshold, config.TextTruncateLimit)
-		case "waitAnalysis":
-			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.QueryMonitoringCountThreshold, config.TextTruncateLimit)
-		case "blockingSessions":
-			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.QueryMonitoringCountThreshold, config.TextTruncateLimit)
-		default:
-			fmt.Println("Unknown query type:", queries[i].Type)
+// queryFormatters maps query types to their corresponding formatting functions.
+var queryFormatters = map[string]queryFormatter{
+	"slowQueries":      formatSlowQueries,
+	"waitAnalysis":     formatWaitAnalysis,
+	"blockingSessions": formatBlockingSessions,
+}
+
+// formatSlowQueries formats the slow queries query.
+func formatSlowQueries(query string, args args.ArgumentList) string {
+	return fmt.Sprintf(query, args.QueryMonitoringFetchInterval, args.QueryMonitoringCountThreshold,
+		args.QueryMonitoringResponseTimeThreshold, config.TextTruncateLimit)
+}
+
+// formatWaitAnalysis formats the wait analysis query.
+func formatWaitAnalysis(query string, args args.ArgumentList) string {
+	return fmt.Sprintf(query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
+}
+
+// formatBlockingSessions formats the blocking sessions query.
+func formatBlockingSessions(query string, args args.ArgumentList) string {
+	return fmt.Sprintf(query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
+}
+
+// LoadQueries loads and formats query details based on the provided arguments.
+func LoadQueries(queries []models.QueryDetailsDto, arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
+	loadedQueries := make([]models.QueryDetailsDto, len(queries))
+	copy(loadedQueries, queries) // Create a copy to avoid modifying the original
+
+	for i := range loadedQueries {
+		formatter, ok := queryFormatters[loadedQueries[i].Type]
+		if !ok {
+			// Log the error and return an error instead of nil
+			err := fmt.Errorf("%w: %s", ErrUnknownQueryType, loadedQueries[i].Type)
+			log.Error(err.Error())
+			return nil, err
 		}
+		loadedQueries[i].Query = formatter(loadedQueries[i].Query, arguments)
 	}
-
-	return queries, nil
+	return loadedQueries, nil
 }
 
 func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
@@ -164,7 +188,7 @@ func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *in
 	}
 
 	queryDetailsDto := models.QueryDetailsDto{
-		Name: "MSSQLQueryExecutionPlans",
+		EventName: "MSSQLQueryExecutionPlans",
 	}
 
 	// Ingest the execution plan
@@ -239,7 +263,7 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 		}
 
 		// Create a new metric set with the query name
-		metricSet := instanceEntity.NewMetricSet(queryDetailsDto.Name)
+		metricSet := instanceEntity.NewMetricSet(queryDetailsDto.EventName)
 
 		// Iterate over the map and add each key-value pair as a metric
 		for key, value := range resultMap {
