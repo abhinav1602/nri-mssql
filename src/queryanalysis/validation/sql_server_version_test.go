@@ -1,11 +1,11 @@
 package validation
 
 import (
+	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
 func TestCheckSqlServerVersion_SupportedVersion(t *testing.T) {

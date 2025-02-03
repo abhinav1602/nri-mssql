@@ -14,7 +14,7 @@ const (
 	versionRegexPattern      = `\b(\d+\.\d+\.\d+)\b`
 	getSQLServerVersionQuery = "SELECT @@VERSION"
 	lastSupportedVersion     = 16
-	firsSupportedVersion     = 14
+	firstSupportedVersion    = 14
 )
 
 var (
@@ -56,5 +56,5 @@ func checkSQLServerVersion(sqlConnection *connection.SQLConnection) (bool, error
 	if err != nil {
 		return false, err
 	}
-	return version.Major >= firsSupportedVersion && version.Major <= lastSupportedVersion, nil
+	return version.Major >= firstSupportedVersion && version.Major <= lastSupportedVersion, nil
 }
