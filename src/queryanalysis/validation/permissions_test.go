@@ -2,14 +2,11 @@
 package validation
 
 import (
-	"errors"
 	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
-
-var errQueryError = errors.New("query error")
 
 func TestCheckPermissionsAndLogin(t *testing.T) {
 	sqlConnection, mock := setupMockDB(t)

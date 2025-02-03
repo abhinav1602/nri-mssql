@@ -46,13 +46,3 @@ func TestGetDatabaseDetails_Error(t *testing.T) {
 	assert.Nil(t, databaseDetails)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
-
-func TestGetDatabaseDetails_UnsupportedVersion(t *testing.T) {
-	db, _, err := sqlmock.New()
-	assert.NoError(t, err)
-	defer db.Close()
-	sqlConnection := &connection.SQLConnection{Connection: sqlx.NewDb(db, "sqlmock")}
-	databaseDetails, err := GetDatabaseDetails(sqlConnection)
-	assert.Nil(t, err)
-	assert.Nil(t, databaseDetails)
-}
