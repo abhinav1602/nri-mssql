@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
+	"github.com/newrelic/nri-mssql/src/connection"
+	"github.com/newrelic/nri-mssql/src/metrics"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/config"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/nri-mssql/src/args"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
@@ -416,7 +417,7 @@ func TestDetectMetricType_GaugeCase(t *testing.T) {
 	value := "123.45"
 	expected := metric.GAUGE
 
-	result := DetectMetricType(value)
+	result := metrics.DetectMetricType(value)
 
 	assert.Equal(t, expected, result, "expected GAUGE for a parsable float string")
 }
@@ -425,7 +426,7 @@ func TestDetectMetricType_AttributeCase(t *testing.T) {
 	value := "NotANumber123"
 	expected := metric.ATTRIBUTE
 
-	result := DetectMetricType(value)
+	result := metrics.DetectMetricType(value)
 
 	assert.Equal(t, expected, result, "expected ATTRIBUTE for a non-parsable float string")
 }
@@ -434,7 +435,7 @@ func TestDetectMetricType_EmptyString(t *testing.T) {
 	value := ""
 	expected := metric.ATTRIBUTE
 
-	result := DetectMetricType(value)
+	result := metrics.DetectMetricType(value)
 
 	assert.Equal(t, expected, result, "expected ATTRIBUTE for an empty string")
 }
@@ -443,7 +444,7 @@ func TestDetectMetricType_Integer(t *testing.T) {
 	value := "78"
 	expected := metric.GAUGE
 
-	result := DetectMetricType(value)
+	result := metrics.DetectMetricType(value)
 
 	assert.Equal(t, expected, result, "expected GAUGE for integer string")
 }

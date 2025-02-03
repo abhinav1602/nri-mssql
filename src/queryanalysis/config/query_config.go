@@ -2,6 +2,8 @@ package config
 
 import "github.com/newrelic/nri-mssql/src/queryanalysis/models"
 
+// Documentation: https://newrelic.atlassian.net/wiki/spaces/GROWTHCXP/pages/3932848457/Queries+and+Data+Models+for+QueryAnalysis
+// The above link contains all the queries, data models, and query details for QueryAnalysis.
 var Queries = []models.QueryDetailsDto{
 	{
 		Name: "MSSQLTopSlowQueries",
