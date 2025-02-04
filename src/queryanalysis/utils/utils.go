@@ -103,9 +103,15 @@ func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetai
 	}
 	defer rows.Close()
 	log.Debug("Query executed: %s", queryDetailsDto.Query)
+	result, queryIDs, error := BindQueryResults(arguments, rows, queryDetailsDto, integration, sqlConnection, executeAndBindTransaction)
+	rows.Close()
 	BindQuerySegment.End()
 
-	return BindQueryResults(arguments, rows, queryDetailsDto, integration, sqlConnection, executeAndBindTransaction)
+	if len(queryIDs) > 0 {
+		// Process collected query IDs for execution plan
+		ProcessExecutionPlans(arguments, integration, sqlConnection, queryIDs, executeAndBindTransaction)
+	}
+	return result, error
 }
 
 // BindQueryResults binds query results to the specified data model using `sqlx`
@@ -115,7 +121,7 @@ func BindQueryResults(arguments args.ArgumentList,
 	integration *integration.Integration,
 	sqlConnection *connection.SQLConnection,
 	executeAndBindTransaction *newrelic.Transaction,
-) ([]interface{}, error) {
+) ([]interface{}, []models.HexString, error) {
 	BindQuerySegment := executeAndBindTransaction.StartSegment("bindQueryResults")
 
 	results := make([]interface{}, 0)
@@ -175,19 +181,37 @@ func BindQueryResults(arguments args.ArgumentList,
 
 			results = append(results, model)
 		default:
-			return nil, fmt.Errorf("%w: %s", ErrUnknownQueryType, queryDetailsDto.Type)
+			return nil, nil, fmt.Errorf("%w: %s", ErrUnknownQueryType, queryDetailsDto.Type)
 		}
 		segment.End()
 	}
-	// Process collected query IDs for execution plan
-	ProcessExecutionPlans(arguments, integration, sqlConnection, queryIDs, executeAndBindTransaction)
+
 	BindQuerySegment.End()
-	return results, nil
+	return results, queryIDs, nil
 }
 
 // ProcessExecutionPlans processes execution plans for all collected queryIDs
 func ProcessExecutionPlans(arguments args.ArgumentList, integration *integration.Integration,
 	sqlConnection *connection.SQLConnection, queryIDs []models.HexString, executeAndBindTransaction *newrelic.Transaction) {
+	executionQuerySegment := newrelic.DatastoreSegment{
+		StartTime: executeAndBindTransaction.StartSegmentNow(),
+		// Product is the datastore type.  See the constants in
+		// https://github.com/newrelic/go-agent/blob/master/v3/newrelic/datastore.go.  Product
+		// is one of the fields primarily responsible for the grouping of Datastore
+		// metrics.
+		Product: newrelic.DatastoreMSSQL,
+		// Collection is the table or group being operated upon in the datastore,
+		// e.g. "users_table".  This becomes the db.collection attribute on Span
+		// events and Transaction Trace segments.  Collection is one of the fields
+		// primarily responsible for the grouping of Datastore metrics.
+		Collection: "executingQuery " + "MSSQLQueryExecutionPlans",
+		// Operation is the relevant action, e.g. "SELECT" or "GET".  Operation is
+		// one of the fields primarily responsible for the grouping of Datastore
+		// metrics.
+		Operation: "SELECT",
+	}
+	defer executionQuerySegment.End()
+
 	if len(queryIDs) == 0 {
 		return
 	}
@@ -200,6 +224,7 @@ func ProcessExecutionPlans(arguments args.ArgumentList, integration *integration
 	queryIDString := strings.Join(stringIDs, ",")
 
 	GenerateAndIngestExecutionPlan(arguments, integration, sqlConnection, queryIDString, executeAndBindTransaction)
+	executionQuerySegment.End()
 }
 
 func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *integration.Integration,
@@ -209,30 +234,12 @@ func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *in
 
 	var model models.ExecutionPlanResult
 
-	executionQuerySegment := newrelic.DatastoreSegment{
-		StartTime: executeAndBindTransaction.StartSegmentNow(),
-		// Product is the datastore type.  See the constants in
-		// https://github.com/newrelic/go-agent/blob/master/v3/newrelic/datastore.go.  Product
-		// is one of the fields primarily responsible for the grouping of Datastore
-		// metrics.
-		Product: newrelic.DatastoreMSSQL,
-		// Collection is the table or group being operated upon in the datastore,
-		// e.g. "users_table".  This becomes the db.collection attribute on Span
-		// events and Transaction Trace segments.  Collection is one of the fields
-		// primarily responsible for the grouping of Datastore metrics.
-		Collection: "executingQuery -  " + "MSSQLQueryExecutionPlans",
-		// Operation is the relevant action, e.g. "SELECT" or "GET".  Operation is
-		// one of the fields primarily responsible for the grouping of Datastore
-		// metrics.
-		Operation: "SELECT",
-	}
 	rows, err := sqlConnection.Connection.Queryx(executionPlanQuery)
 	if err != nil {
 		log.Error("Failed to execute execution plan query: %s", err)
 		return
 	}
 	defer rows.Close()
-	executionQuerySegment.End()
 
 	results := make([]interface{}, 0)
 
