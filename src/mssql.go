@@ -92,6 +92,7 @@ func main() {
 	if err = i.Publish(); err != nil {
 		log.Error(err.Error())
 		os.Exit(1)
+		return
 	}
 
 	if args.EnableQueryMonitoring {
