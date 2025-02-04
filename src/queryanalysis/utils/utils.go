@@ -91,7 +91,7 @@ func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetai
 		// e.g. "users_table".  This becomes the db.collection attribute on Span
 		// events and Transaction Trace segments.  Collection is one of the fields
 		// primarily responsible for the grouping of Datastore metrics.
-		Collection: "executingQuery " + queryDetailsDto.Name,
+		Collection: "executingQuery " + queryDetailsDto.EventName,
 		// Operation is the relevant action, e.g. "SELECT" or "GET".  Operation is
 		// one of the fields primarily responsible for the grouping of Datastore
 		// metrics.
@@ -123,7 +123,7 @@ func BindQueryResults(arguments args.ArgumentList,
 	queryIDs := make([]models.HexString, 0) // List to collect queryIDs for all slowQueries to process execution plans
 
 	for rows.Next() {
-		segment := executeAndBindTransaction.StartSegment("bindQueryResults - " + queryDetailsDto.Name)
+		segment := executeAndBindTransaction.StartSegment("bindQueryResults - " + queryDetailsDto.EventName)
 		switch queryDetailsDto.Type {
 		case "slowQueries":
 			var model models.TopNSlowQueryDetails
@@ -136,8 +136,8 @@ func BindQueryResults(arguments args.ArgumentList,
 			}
 			results = append(results, model)
 
-			AnonymizeSegment := executeAndBindTransaction.StartSegment("bindQueryResults - " + queryDetailsDto.Name + "Subsegment - Anonymize")
-			AnonymizeQueryText(model.QueryText)
+			AnonymizeSegment := executeAndBindTransaction.StartSegment("bindQueryResults - " + queryDetailsDto.EventName + "Subsegment - Anonymize")
+			AnonymizeQueryText(*model.QueryText)
 			AnonymizeSegment.End()
 			results = append(results, model)
 			// fetch and generate execution plan
@@ -151,7 +151,7 @@ func BindQueryResults(arguments args.ArgumentList,
 				log.Error("Could not scan row: ", err)
 				continue
 			}
-			AnonymizeSegment := executeAndBindTransaction.StartSegment("bindQueryResults - " + queryDetailsDto.Name + "Subsegment - Anonymize")
+			AnonymizeSegment := executeAndBindTransaction.StartSegment("bindQueryResults - " + queryDetailsDto.EventName + "Subsegment - Anonymize")
 			if model.QueryText != nil {
 				*model.QueryText = AnonymizeQueryText(*model.QueryText)
 			}
@@ -164,7 +164,7 @@ func BindQueryResults(arguments args.ArgumentList,
 				log.Error("Could not scan row: ", err)
 				continue
 			}
-			AnonymizeSegment := executeAndBindTransaction.StartSegment("bindQueryResults - " + queryDetailsDto.Name + "Subsegment - Anonymize")
+			AnonymizeSegment := executeAndBindTransaction.StartSegment("bindQueryResults - " + queryDetailsDto.EventName + "Subsegment - Anonymize")
 			if model.BlockingQueryText != nil {
 				*model.BlockingQueryText = AnonymizeQueryText(*model.BlockingQueryText)
 			}
@@ -204,8 +204,8 @@ func ProcessExecutionPlans(arguments args.ArgumentList, integration *integration
 
 func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *integration.Integration,
 	sqlConnection *connection.SQLConnection, queryIDString string, executeAndBindTransaction *newrelic.Transaction) {
-	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, min(config.IndividualQueryCountMax, arguments.QueryCountThreshold),
-		arguments.QueryResponseTimeThreshold, queryIDString, arguments.FetchInterval, config.TextTruncateLimit)
+	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, min(config.IndividualQueryCountMax, arguments.QueryMonitoringCountThreshold),
+		arguments.QueryMonitoringResponseTimeThreshold, queryIDString, arguments.QueryMonitoringFetchInterval, config.TextTruncateLimit)
 
 	var model models.ExecutionPlanResult
 

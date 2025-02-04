@@ -123,7 +123,7 @@ func main() {
 		return
 	}
 
-	if args.EnableQueryPerformance {
+	if args.EnableQueryMonitoring {
 		totalNriMsSqlQueryPerformanceExecutionTime := app.StartTransaction("TotalNriMsSqlQueryPerformanceExecutionTime")
 		queryanalysis.PopulateQueryPerformanceMetrics(i, args, app)
 		totalNriMsSqlQueryPerformanceExecutionTime.End()
