@@ -3,6 +3,9 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/nri-mssql/src/args"
@@ -12,8 +15,10 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
-	"testing"
-	"time"
+)
+
+var (
+	ErrQueryExecution = errors.New("query execution error")
 )
 
 func TestGenerateAndIngestExecutionPlan_Success(t *testing.T) {
@@ -60,7 +65,7 @@ func TestGenerateAndIngestExecutionPlan_QueryError(t *testing.T) {
 	defer sqlConn.Connection.Close()
 
 	// Simulate an error during the execution of the execution plan query
-	mock.ExpectQuery("DECLARE @TopN INT = (.+?);").WillReturnError(errors.New("query execution error"))
+	mock.ExpectQuery("DECLARE @TopN INT = (.+?);").WillReturnError(ErrQueryExecution)
 
 	integrationObj := &integration.Integration{}
 	argList := args.ArgumentList{}
