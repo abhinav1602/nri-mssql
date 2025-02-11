@@ -79,7 +79,7 @@ var Queries = []models.QueryDetailsDto{
 						AND qs.execution_count > 0
 						AND pa.attribute = 'dbid'
 						AND DB_NAME(CONVERT(INT, pa.value)) NOT IN ('master', 'model', 'msdb', 'tempdb')
-						AND qt.text NOT LIKE '%%sys%%'
+						AND qt.text NOT LIKE '%%sys.%%'
 						AND qt.text NOT LIKE '%%INFORMATION_SCHEMA%%'
 						AND qt.text NOT LIKE '%%schema_name()%%'
 						AND qt.text IS NOT NULL
@@ -206,8 +206,7 @@ var Queries = []models.QueryDetailsDto{
 					  LatestInterval li ON qsqt.query_sql_text = li.query_sql_text 
 							  AND ws.runtime_stats_interval_id = li.max_runtime_stats_interval_id
 					WHERE 
-					  qsqt.query_sql_text NOT LIKE ''%%WITH%%''
-					  AND qsqt.query_sql_text NOT LIKE ''%%sys.%%''
+					  qsqt.query_sql_text NOT LIKE ''%%sys.%%''
 					  AND qsqt.query_sql_text NOT LIKE ''%%INFORMATION_SCHEMA%%''
 				  )
 				  SELECT
