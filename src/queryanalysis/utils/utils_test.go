@@ -330,15 +330,7 @@ func TestLoadQueries_SlowQueries(t *testing.T) {
 	configQueries := config.Queries
 	var arguments args.ArgumentList
 
-	slowQueriesIndex := -1
-	for i, query := range configQueries {
-		if query.Type == "slowQueries" {
-			slowQueriesIndex = i
-			break
-		}
-	}
-
-	// Ensure the correct query was found
+	slowQueriesIndex := findQueryIndex(configQueries, "slowQueries")
 	if slowQueriesIndex == -1 {
 		t.Fatalf("could not find 'slowQueries' in the list of queries")
 	}
@@ -357,73 +349,50 @@ func TestLoadQueries_SlowQueries(t *testing.T) {
 }
 
 func TestLoadQueries_WaitAnalysis(t *testing.T) {
-	// Initial Configuration and Argument Setup
 	configQueries := config.Queries
 	var args args.ArgumentList
 
-	// Prepare Arguments
 	args.QueryMonitoringFetchInterval = 15
 	args.QueryMonitoringCountThreshold = 10
 
-	// Locate the index of the "waitAnalysis" query
-	waitQueriesIndex := -1
-	for i, query := range configQueries {
-		if query.Type == "waitAnalysis" {
-			waitQueriesIndex = i
-			break
-		}
-	}
-
-	// Ensure the "waitAnalysis" query is found
+	waitQueriesIndex := findQueryIndex(configQueries, "waitAnalysis")
 	if waitQueriesIndex == -1 {
 		t.Fatalf("could not find 'waitAnalysis' in the list of queries")
 	}
 
-	// Modify the query string in preparation for comparison
-	expectedQuery := fmt.Sprintf(
-		configQueries[waitQueriesIndex].Query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
+	expectedQuery := fmt.Sprintf(configQueries[waitQueriesIndex].Query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
 
-	// Invoke the function under test
 	queries, err := LoadQueries(config.Queries, args)
 	assert.Nil(t, err, "expected no error, got an error instead")
-
-	// Verify that the "waitAnalysis" query was modified as expected
 	assert.Equal(t, expectedQuery, queries[waitQueriesIndex].Query, "expected query to match the modified query definition")
 }
 
 func TestLoadQueries_BlockingSessions(t *testing.T) {
-	// Initial Configuration and Argument Setup
 	configQueries := config.Queries
 	var args args.ArgumentList
 
-	// Prepare Arguments
 	args.QueryMonitoringFetchInterval = 15
 	args.QueryMonitoringCountThreshold = 10
 
-	// Locate the index of the "blockingSessions" query
-	blockQueriesIndex := -1
-	for i, query := range configQueries {
-		if query.Type == "blockingSessions" {
-			blockQueriesIndex = i
-			break
-		}
-	}
-
-	// Ensure the "blockingSessions" query is found
+	blockQueriesIndex := findQueryIndex(configQueries, "blockingSessions")
 	if blockQueriesIndex == -1 {
 		t.Fatalf("could not find 'blockingSessions' in the list of queries")
 	}
 
-	// Modify the expected query string in preparation for comparison
-	expectedQuery := fmt.Sprintf(
-		configQueries[blockQueriesIndex].Query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
+	expectedQuery := fmt.Sprintf(configQueries[blockQueriesIndex].Query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
 
-	// Invoke the function under test
 	queries, err := LoadQueries(config.Queries, args)
 	assert.Nil(t, err, "expected no error, got an error instead")
-
-	// Verify that the "blockingSessions" query was modified as expected
 	assert.Equal(t, expectedQuery, queries[blockQueriesIndex].Query, "expected query to match the modified query definition")
+}
+
+func findQueryIndex(queries []models.QueryDetailsDto, queryType string) int {
+	for i, query := range queries {
+		if query.Type == queryType {
+			return i
+		}
+	}
+	return -1
 }
 
 func TestLoadQueries_UnknownType(t *testing.T) {
